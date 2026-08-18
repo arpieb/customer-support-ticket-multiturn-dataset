@@ -12,3 +12,5 @@ wheels/
 # UV cruft
 .python-version
 
+# Project specific artifacts
+data/
