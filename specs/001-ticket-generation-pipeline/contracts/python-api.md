@@ -80,6 +80,10 @@ record ID (FR-015b).
 slot_random(seed: int, position: int, attempt: int) -> random.Random
 ```
 
+The subdomain is drawn with that generator from the prompt document's declared list (FR-008d), so two runs
+at any concurrency assign the same subdomain to the same position. The scenario the model elaborates within
+it is model output and is not reproducible — the record carries both, and only the first is comparable.
+
 ---
 
 ## Model access
@@ -159,6 +163,8 @@ to test for.
 | `OutputPathExistsError` | The destination artifact already exists (FR-014) |
 | `CheckpointMismatchError` | Resume attempted with changed config, seed, prompt document, or rubric (FR-015e) |
 | `CheckpointCorruptError` | The checkpoint is unreadable; the operator must restart deliberately (spec Edge Cases) |
+| `UnobservableEnvironmentError` | An environment setting could alter model routing but cannot be observed and recorded, so the run refuses rather than proceed unrecorded (FR-008c) |
+| `PromptDocumentError` | The domain prompt document declares no usable subdomain list (FR-008d) |
 
 All inherit from `TicketDatasetError`. None of them carry a matched PII value.
 

@@ -60,7 +60,10 @@ derivation makes each slot's choices a pure function of `(seed, position, attemp
 concurrency level, scheduling, retries, and resume. This is precisely what SC-013 measures: two runs at
 different concurrency produce identical per-position choices. `blake2b` is in the standard library, is
 fast, and gives well-distributed keys; the attempt component means a retried slot re-rolls its non-metadata
-choices rather than repeating a draw that already failed.
+choices rather than repeating a draw that already failed. The slot's **subdomain** is drawn with this
+generator from the prompt document's declared list (FR-008d), which is what makes FR-012b's claim about
+scenario selection true: the subdomain is seeded and comparable across runs, while the situation the model
+elaborates within it is model output and is not.
 
 **Alternatives considered**:
 - *One `random.Random(seed)` advanced sequentially*: the obvious approach and explicitly prohibited by
@@ -211,10 +214,12 @@ telemetry off rather than trusting an upstream default to stay unchanged.
 
 ## R8: Blocking floor scoped to real detector coverage *(carried forward, R3)*
 
-**Decision**: The FR-018 blocking floor is exactly the four high-precision regex categories: `EMAIL`,
-`PHONE`, `CREDIT_CARD`, `GOVERNMENT_ID` (SSN). `IP_ADDRESS` and `POSTAL_CODE` are registered as advisory,
-non-blocking. Full postal address and bank account are **declared gaps**, restated in every run report
-(FR-019). Generic `DATE` detection stays off — every record carries legitimate ticket timestamps, and a
+**Decision**: The FR-018 blocking floor is exactly the four high-precision regex types: `EMAIL`, `PHONE`,
+`CREDIT_CARD`, `US_SSN` — named at identifier-type level, because "government identifiers" would promise
+coverage of non-US identifiers that nothing detects. `IP_ADDRESS` and `POSTAL_CODE` are registered as advisory,
+non-blocking. Non-US government identifiers, full postal address, and bank account are **declared gaps**;
+every run report enumerates covered and uncovered types alike, at the same specificity as the floor, so a
+later detector widens coverage visibly rather than silently (FR-019). Generic `DATE` detection stays off — every record carries legitimate ticket timestamps, and a
 detector that fires on nearly every record trains maintainers to ignore the report.
 
 **Rationale**: A floor naming categories nothing detects produces "clean" verdicts that overstate coverage —

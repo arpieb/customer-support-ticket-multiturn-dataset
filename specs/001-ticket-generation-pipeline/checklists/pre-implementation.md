@@ -19,7 +19,8 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 ## Model Generation & Judging Requirements
 
-- [ ] CHK001 FR-008 requires that the generator "MUST NOT read hidden state from the operator's environment", yet generation authenticates against a hosted model using credentials resolved from that environment. Is the credential exception stated in the requirements, or does FR-008 contradict the way the feature must actually run? [Conflict, Spec §FR-008, §Assumptions]
+- [x] CHK001 FR-008 requires that the generator "MUST NOT read hidden state from the operator's environment", yet generation authenticates against a hosted model using credentials resolved from that environment. Is the credential exception stated in the requirements, or does FR-008 contradict the way the feature must actually run? [Conflict, Spec §FR-008, §Assumptions]
+  - **Resolved 2026-08-19** — FR-008 amended: model credentials are the **sole** permitted environment input, declared as an access mechanism that must not influence output and must never be written to any artifact. **FR-008c** (new) closes the real hole the conflict pointed at: an environment setting that could change model selection, routing, or parameters — endpoint, profile, inference region — is genuinely the hidden state FR-008 prohibits, so it must be recorded in the manifest as a non-deterministic input, and a setting that cannot be observed causes the run to refuse rather than proceed unrecorded.
 - [ ] CHK002 Are requirements defined for what happens when the model **declines** a generation request on safety grounds — a case distinct from an unparseable response or a transport failure? [Gap, Spec §FR-009b, §FR-009c]
 - [ ] CHK003 If a declined request is rescued by a fallback model, is it specified whether a record produced by a *different model than the one configured* is acceptable output, and how its provenance must be recorded? [Gap, Design-only, Plan §Technical Context]
 - [ ] CHK004 FR-009 requires turns to "alternate between participants" but never states **which role speaks first**. Is the opening role specified, or is it left to the implementer? [Gap, Spec §FR-009]
@@ -34,12 +35,14 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 ## Reproducibility & Determinism Requirements
 
-- [ ] CHK013 FR-012b names "scenario selection" as a seeded choice, but FR-008a has the **model** elaborating scenarios from the prompt document. Are these consistent, or does one requirement seed a choice the other assigns to the model? [Conflict, Spec §FR-012b, §FR-008a]
+- [x] CHK013 FR-012b names "scenario selection" as a seeded choice, but FR-008a has the **model** elaborating scenarios from the prompt document. Are these consistent, or does one requirement seed a choice the other assigns to the model? [Conflict, Spec §FR-012b, §FR-008a]
+  - **Resolved 2026-08-19** — neither requirement gave; scenario derivation is now two-level. **FR-008d** (new) requires the domain prompt document to declare an enumerable subdomain list; FR-012b's seeded choice selects the **subdomain** (so its claim is true and the corpus stratifies deterministically), and the model elaborates the specific situation within it (so FR-008a stands). FR-008b now requires both on the record: `subdomain` is reproducible from the seed, `scenario` is model text and is not. This changes the record contract — `subdomain` added to [record.schema.json](../contracts/record.schema.json) — and gives SC-013 a per-position field worth comparing.
 - [ ] CHK014 FR-010 and SC-003 both promise output "equivalent in structure and composition". Is "equivalent" defined operationally — which fields must match, at what granularity — so that two corpora can be objectively compared? [Measurability, Spec §FR-010, §SC-003]
 - [ ] CHK015 SC-013 asserts "identical per-position seeded choices". Is the authoritative list of which choices are seeded (versus model-determined) stated in the requirements, or must it be inferred from the design? [Clarity, Spec §SC-013, §FR-012b]
 - [ ] CHK016 FR-006 requires ticket creation and resolution times on every record, but no requirement says whether those timestamps are **seeded, model-chosen, or taken from the wall clock** — the distinction decides whether they are reproducible. [Gap, Spec §FR-006, §FR-012b]
 - [ ] CHK017 Is it specified whether the same seed and configuration run against a **different code revision** must still be considered reproducible, or whether the code revision is part of the reproducibility contract? [Gap, Spec §FR-010, §FR-025]
-- [ ] CHK018 SC-001 requires the run to complete "within an operator-acceptable window recorded in the configuration", but no functional requirement establishes such a field, and the configuration described in [data-model.md](../data-model.md) has none. Is this criterion satisfiable as written? [Conflict, Spec §SC-001, Design-only]
+- [x] CHK018 SC-001 requires the run to complete "within an operator-acceptable window recorded in the configuration", but no functional requirement establishes such a field, and the configuration described in [data-model.md](../data-model.md) has none. Is this criterion satisfiable as written? [Conflict, Spec §SC-001, Design-only]
+  - **Resolved 2026-08-19**, together with CHK059 — **FR-012f** (new) lets the configuration declare a run budget: a maximum wall-clock duration, a maximum number of model calls, or both. Exhausting one **stops and checkpoints** rather than failing, so no completed work is lost and resuming stays the operator's decision; the manifest records the declared budget and the actual spend. SC-001 now refers to that budget, making the criterion literally satisfiable, and an unattended release-scale run finally has a ceiling on time and cost.
 - [ ] CHK019 Are requirements defined for whether a corpus generated at one concurrency level and one generated at another must be **byte-comparable in record order**, or only comparable position by position? [Clarity, Spec §FR-012c, §SC-013]
 
 ## Provenance, Manifest & Traceability Requirements
@@ -59,7 +62,8 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 - [x] CHK029 FR-021 discards flagged records, while FR-022 lets a reviewer approve a finding as a legitimate synthetic value. If the flagged record was discarded and never written, and FR-020 forbids reporting the matched value, **what does the reviewer inspect in order to approve it**? Are the two requirements jointly satisfiable? [Conflict, Spec §FR-021, §FR-022, §FR-020]
   - **Resolved 2026-08-19** — they were not jointly satisfiable as written. Spec amended: **FR-020a** adds a deterministic, irreversible **masked rendering** to every finding (domain for an email, issuer range for a card, shape and length otherwise), which settles the common synthetic cases without reproducing the value; **FR-021b** retains privacy-discarded records in a **quarantine artifact** under `data/interim/`, never committed and never dataset output, for findings a mask cannot settle. FR-022 now states that a reviewer must be able to decide from one or the other and need not have observed the original run. Assumptions record why quarantine is compatible with Principle IV: the content is fabricated and merely identifier-shaped, and the requirement is about the provenance of content, not its shape.
 - [ ] CHK030 Is the authoritative list of **scanned fields** stated in the requirements? The record carries model-generated free text in `scenario` as well as in turn content; the Edge Cases say "every field carrying free text" without naming them. [Gap, Spec §FR-023, §Edge Cases]
-- [ ] CHK031 Does FR-018's term "government identifiers" match what an offline detector can actually cover (in practice, US SSN), or does it promise coverage of non-US identifiers that nothing detects — the exact overclaim FR-019 exists to prevent? [Conflict, Spec §FR-018, §FR-019]
+- [x] CHK031 Does FR-018's term "government identifiers" match what an offline detector can actually cover (in practice, US SSN), or does it promise coverage of non-US identifiers that nothing detects — the exact overclaim FR-019 exists to prevent? [Conflict, Spec §FR-018, §FR-019]
+  - **Resolved 2026-08-19** — FR-018 now names **US Social Security numbers** rather than "government identifiers", stating the floor at the level of the identifier type actually detected; naming the broad category promised coverage of non-US identifiers that no offline detector delivers, which is the same overclaim FR-019 exists to prevent, merely relocated into the requirement. FR-019 is strengthened in turn: every report enumerates the types the scan **covers** as well as those it does not, at that same specificity, so widening coverage later is visible as a change in what the report claims rather than a silent improvement.
 - [ ] CHK032 The design places the privacy scan **last**, after coherence judging, so a record discarded for incoherence is never scanned. Is it specified whether privacy scanning must cover records that failed an earlier gate, and does the FR-021a discard rate become unrepresentative if it does not? [Consistency, Coverage, Spec §FR-016, §FR-021a, Design-only]
 - [ ] CHK033 Are requirements defined for **who may approve** a privacy exception, and whether the person who ran the generator may approve findings on their own output? [Gap, Spec §FR-022]
 - [ ] CHK034 Is there a requirement that an approved exception be re-reviewed or expire, or do approvals persist indefinitely once recorded? [Gap, Spec §FR-022]
@@ -97,7 +101,8 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 - [ ] CHK056 Is the report's **format and location** established by the requirements, or only that it be machine-readable? [Gap, Spec §FR-035, §FR-036]
 - [ ] CHK057 SC-009 requires reporting the score distribution across the corpus. Is the distribution's form specified — bucketing, summary statistics — well enough to be objectively produced and compared? [Measurability, Spec §SC-009]
 - [ ] CHK058 FR-034 requires reporting duplicate conversations. Is the **scope** of duplicate detection specified — within a single run only, or across previously generated corpora — and is the comparison basis (turn content, whole record) defined? [Clarity, Spec §FR-034]
-- [ ] CHK059 Are requirements defined bounding a run's **cost or call volume** — a ceiling, an estimate before starting, or an abort condition? SC-001 asserts a 100,000-record run is achievable; nothing prevents an unattended run from spending far more than intended. [Gap, Spec §SC-001, §Assumptions]
+- [x] CHK059 Are requirements defined bounding a run's **cost or call volume** — a ceiling, an estimate before starting, or an abort condition? SC-001 asserts a 100,000-record run is achievable; nothing prevents an unattended run from spending far more than intended. [Gap, Spec §SC-001, §Assumptions]
+  - **Resolved 2026-08-19** — closed by FR-012f alongside CHK018: a declared budget of wall-clock time, model calls, or both, with exhaustion stopping and checkpointing the run.
 
 ## Cross-Artifact Consistency & Governance
 
@@ -113,14 +118,15 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 - Check items off as resolved: `[x]`. An item may be resolved by **amending the spec** or by recording a
   deliberate decision that the gap is acceptable — but not by leaving it unexamined.
-- The highest-value items are the `[Conflict]` ones — CHK001 (credentials versus "no hidden environment
-  state"), CHK013 (who selects the scenario), CHK018 (a success criterion referencing a configuration field
-  that does not exist), ~~CHK029~~ (resolved), and CHK031 (a floor promising more than any offline detector
-  delivers). Each is two requirements disagreeing, not a gap, so no amount of careful implementation
-  resolves them.
-- **Resolved so far**: CHK029 and CHK053, on 2026-08-19, by amending the spec (FR-020a, FR-021b, FR-022,
-  FR-026a) and propagating through `plan.md`, `data-model.md`, `contracts/`, and `quickstart.md`. Four
-  conflicts remain open.
+- **All five `[Conflict]` items are resolved** — CHK001, CHK013, CHK018, CHK029, CHK031 — each by amending
+  the requirements rather than by deciding how to implement around them. Each was two requirements
+  disagreeing, so no amount of careful implementation would have resolved any of them; an implementer would
+  simply have picked a side without noticing there was one.
+- **Resolved on 2026-08-19**: CHK001, CHK013, CHK018, CHK029, CHK031, CHK053, and CHK059 (as part of
+  CHK018). Spec amendments: FR-008 (credential carve-out), FR-008c, FR-008d, FR-012f, FR-018, FR-019,
+  FR-020a, FR-021b, FR-022, FR-026a, SC-001, plus Assumptions and Edge Cases. `subdomain` was added to the
+  record contract. Every change is propagated through `research.md`, `plan.md`, `data-model.md`,
+  `contracts/`, and `quickstart.md`.
 - `[Design-only]` items mark constraints that exist in `plan.md`, `data-model.md`, or `contracts/` but not
   in the spec. A design document is not a requirement: an implementer following the spec alone would never
   learn them, and a future revision could drop them without any requirement noticing.

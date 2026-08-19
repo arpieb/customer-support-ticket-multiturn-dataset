@@ -33,7 +33,7 @@ observable without polluting stdout.
 | `0` | Corpus written to the release path; every threshold satisfied |
 | `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance — each computed over `records_generated` per FR-026a) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
 | `2` | Refused before generating: invalid config, unsatisfiable composition, existing output path, detector floor not covered, or a resume whose inputs no longer match (FR-011, FR-018, FR-032, FR-015e) |
-| `3` | Interrupted; progress checkpointed and resumable (FR-015a) |
+| `3` | Interrupted, **or a declared budget was exhausted** (FR-012f); progress checkpointed and resumable. Completed work is never lost to a ceiling |
 
 The distinction between `1` and `2` is the point: `2` means nothing was generated and nothing was spent;
 `1` means a corpus exists in staging and its accounting explains why it did not qualify.
@@ -61,8 +61,10 @@ re-checking an artifact after the exception file changes.
 
 Exit `0` when clean or fully excepted; `1` when unreviewed findings exist. Findings name record ID, field,
 category, detector, and a masked rendering, and **never** reproduce the matched value (FR-020, FR-020a).
-Every report states the detectors that ran, the counts examined, the declared gaps, and the quarantine path
-and count when a generation run produced one (FR-019, FR-021b, FR-023).
+Every report enumerates the identifier types the scan **covers** as well as those it does not — at the same
+specificity as the floor, so `US_SSN` covered never reads as government identifiers covered — alongside the
+detectors that ran, the counts examined, and the quarantine path and count when a generation run produced
+one (FR-019, FR-021b, FR-023).
 
 ---
 

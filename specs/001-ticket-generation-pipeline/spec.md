@@ -179,6 +179,9 @@ stated tolerance.
   completed work, and must not silently deliver a smaller corpus than requested.
 - **Sustained provider outage**: When retries are exhausted across many consecutive records, the run stops
   and checkpoints rather than burning through the remaining corpus emitting discards.
+- **Declared budget exhausted mid-run**: A run that reaches its declared time or call ceiling stops and
+  checkpoints with its partial corpus intact and its accounting complete, rather than continuing past the
+  ceiling or discarding completed work. Resuming is the operator's decision, not an automatic one.
 - **Concurrency changed between runs**: Two runs with the same seed and configuration but different
   concurrency levels must still produce comparable corpora, since seeded choices are position-derived rather
   than order-derived.
@@ -215,12 +218,24 @@ stated tolerance.
 
 - **FR-008**: The generator MUST accept a single serialized configuration, an explicit seed, and a committed
   domain prompt document as its only inputs, and MUST NOT read hidden state from the operator's environment.
+  **Model credentials are the sole exception**: they are an access mechanism rather than a generation input,
+  they MUST NOT influence output content, and they MUST NOT be recorded anywhere in the run's artifacts.
+- **FR-008c**: Any environment setting that could change which model serves a request, how it is routed, or
+  the parameters it runs under — an alternate endpoint, an account or profile selection, an inference region
+  — MUST be recorded in the manifest as a non-deterministic input. An unrecorded environment setting that
+  alters output is exactly the hidden state FR-008 prohibits; recording it converts it into provenance. A
+  setting that cannot be observed and recorded MUST cause the run to refuse rather than proceed unrecorded.
 - **FR-008a**: Support scenarios MUST derive from a committed domain prompt document, from which the
   generation model elaborates plausible subdomain scenarios. The prompt document is a run input: its
   identifying hash MUST be recorded in the manifest, so a change to it is visible as a change in provenance.
-- **FR-008b**: Each record MUST record the subdomain scenario it was generated for, in addition to its
-  `source_id`, so that records remain distinguishable and the corpus can be stratified by scenario — the
-  prompt document alone is common to every record and cannot serve that purpose.
+- **FR-008d**: The domain prompt document MUST declare an **enumerable list of subdomains**. Scenario
+  derivation is two-level: the subdomain is a seeded choice made before dispatch (FR-012b), and the model
+  elaborates a specific situation within the subdomain it is given. Without an enumerable list, "scenario
+  selection" cannot be a seeded choice at all, and the corpus cannot be stratified deterministically.
+- **FR-008b**: Each record MUST record **both** the subdomain it was assigned and the specific scenario the
+  model elaborated within it, in addition to its `source_id`, so that records remain distinguishable and the
+  corpus can be stratified — the prompt document alone is common to every record and cannot serve that
+  purpose. The subdomain is reproducible from the seed; the elaborated scenario is model text and is not.
 - **FR-009**: The generator MUST produce coherent multi-turn exchanges in which turns are ordered, are
   non-empty, alternate between participants, and concern a single support issue.
 - **FR-009a**: Conversation text MUST be produced by a language model prompted from the domain prompt
@@ -264,9 +279,10 @@ stated tolerance.
   and progress is observable during a long run.
 - **FR-012a**: The generator MUST process multiple conversations concurrently, with the level of concurrency
   configurable, so that a release-scale corpus is achievable in a single run.
-- **FR-012b**: All seeded choices for a record — its turn count, its composition assignment, its scenario
-  selection — MUST be derived deterministically from the run seed and the record's position, assigned before
-  the record is dispatched. They MUST NOT be drawn from a shared sequential stream, so that output does not
+- **FR-012b**: All seeded choices for a record — its turn count, its composition assignment, its subdomain
+  selection (FR-008d) — MUST be derived deterministically from the run seed and the record's position,
+  assigned before the record is dispatched. The scenario the model elaborates within an assigned subdomain
+  is model output, not a seeded choice, and is reproducible only in the structural sense FR-010 states. They MUST NOT be drawn from a shared sequential stream, so that output does not
   depend on the order in which concurrent work completes.
 - **FR-012c**: Records MUST be written in a deterministic order independent of completion order, so that two
   runs with the same seed and configuration produce corpora comparable record by record.
@@ -274,6 +290,11 @@ stated tolerance.
   report retry counts in the run report so that a degraded provider is visible rather than merely slow.
 - **FR-012e**: The generator MUST bound its own request rate so a run cannot be throttled into failure by
   its own concurrency, and the bound MUST be configurable.
+- **FR-012f**: The configuration MUST allow the operator to declare a **run budget** — a maximum wall-clock
+  duration, a maximum number of model calls, or both. When a declared budget is exhausted, the run MUST stop
+  and checkpoint rather than continue or fail outright, so that no completed work is lost and the operator
+  decides whether to resume. The manifest MUST record the declared budget and the actual spend against it.
+  An unattended run at release scale otherwise has no ceiling on time or cost.
 - **FR-013**: The generator MUST write output as JSON Lines beneath the project's data directory, placing
   release-path output in a location distinct from scratch and intermediate output.
 - **FR-014**: The generator MUST NOT silently overwrite or append to an existing artifact at its output path.
@@ -299,10 +320,15 @@ stated tolerance.
 - **FR-017**: Detection MUST be performed by one or more registered detectors behind a common interface, so
   a detector can be added or replaced without changing the record definition or the pipeline.
 - **FR-018**: The scan MUST detect at minimum: email addresses, phone numbers, payment card numbers, and
-  government identifiers. A detector set that cannot cover this floor MUST fail the run before generation
-  rather than producing unvouched output.
-- **FR-019**: Categories the scan does not cover MUST be stated in the run report, so a clean result is
-  never mistaken for coverage the scan does not provide.
+  **US Social Security numbers**. A detector set that cannot cover this floor MUST fail the run before
+  generation rather than producing unvouched output. The floor is stated at the level of the identifier
+  **type** actually detected rather than as a broad category: naming "government identifiers" would promise
+  coverage of non-US identifiers that no offline detector delivers, which is the same overclaim FR-019
+  exists to prevent, merely relocated from the report into the requirement.
+- **FR-019**: Every run report MUST enumerate both the identifier **types the scan covers** and the types it
+  does not, at the same level of specificity as FR-018's floor — so a clean result is never mistaken for
+  coverage the scan does not provide, and so widening coverage later is visible as a change in what the
+  report claims rather than a silent improvement.
 - **FR-020**: Every privacy finding MUST report the record identifier, the field, the category detected, and
   the detector that reported it — and MUST NOT reproduce the matched value itself.
 - **FR-020a**: Every privacy finding MUST additionally carry a **masked rendering** of the matched value —
@@ -416,7 +442,8 @@ stated tolerance.
 
 - **SC-001**: An author can produce a corpus of 100,000 conversation records in a single run on one machine
   without the run exhausting memory or requiring manual intervention, with concurrency sufficient that the
-  run completes within an operator-acceptable window recorded in the configuration.
+  run completes within the budget declared in the configuration (FR-012f) — or stops and checkpoints when
+  that budget is exhausted, so the outcome is never an unbounded run.
 - **SC-013**: Two runs with the same seed and configuration but different concurrency levels produce corpora
   with identical composition and identical per-position seeded choices, demonstrating that throughput does
   not compromise reproducibility.
@@ -462,10 +489,11 @@ stated tolerance.
   not about its shape. The quarantine artifact is never committed and is never dataset output, and the
   approved-exception file continues to store fingerprints rather than values, so nothing identifier-shaped
   accumulates in the repository itself.
-- **The blocking floor is bounded by what offline detection can do**: The mandatory categories are those an
-  offline pattern detector covers with high precision. Full postal addresses, bank account numbers, and
-  person names are NOT gated — reliable offline detection of them is unavailable — and this residual risk is
-  accepted because records are synthetic by construction. FR-019 requires the gap be stated in every report.
+- **The blocking floor is bounded by what offline detection can do**: The mandatory types are those an
+  offline pattern detector covers with high precision. Non-US government identifiers, full postal addresses,
+  bank account numbers, and person names are NOT gated — reliable offline detection of them is unavailable —
+  and this residual risk is accepted because records are synthetic by construction. FR-019 requires every
+  report to enumerate covered and uncovered types alike, so the gap is visible at the point of use.
 - **Composition tolerance is proportional**: Requested distributions are honored within a tolerance rather
   than exactly, because integer record counts cannot hit arbitrary proportions precisely. The ±2 percentage
   point default is comfortably achievable at release scale but may be unreachable on very small corpora,

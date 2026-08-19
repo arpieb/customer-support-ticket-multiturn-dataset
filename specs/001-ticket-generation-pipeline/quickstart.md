@@ -67,7 +67,10 @@ Run with the seeded-defect prompt document, which deliberately elicits identifie
 uv run ticket-dataset generate --config configs/planted-pii.toml --seed 7
 ```
 
-**Expect**: exit `1`. Flagged records are discarded under `privacy_finding` and appended to
+**Expect**: exit `1`, and a report that enumerates the covered identifier types (`EMAIL`, `PHONE`,
+`CREDIT_CARD`, `US_SSN`) alongside the uncovered ones (non-US government IDs, postal address, bank account),
+so a clean section is never read as broader coverage than the gate delivers.
+Flagged records are discarded under `privacy_finding` and appended to
 `data/interim/<run_id>/quarantine.jsonl`; the discard rate — `privacy_finding` discards divided by every
 generator response across all attempts (FR-026a) — exceeds the 0.5% threshold, so the run fails and
 **nothing is moved into `data/release/`**. The report names each finding by record ID, field, category,
@@ -190,16 +193,17 @@ uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --out data/
 uv run ticket-dataset generate --config configs/smoke16.toml --seed 42 --out data/release/c16.jsonl # max_concurrency 16
 ```
 
-**Expect**: identical composition and identical per-position seeded choices — same assigned metadata and
-same turn count at every `record_index`. Conversation *text* differs, and that is expected and documented
-(FR-010).
+**Expect**: identical composition and identical per-position seeded choices — same assigned metadata, same
+assigned `subdomain`, and same turn count at every `record_index`. The `scenario` the model elaborates
+within that subdomain differs, as does conversation text, and both are expected and documented (FR-010,
+FR-008d).
 
 ```bash
 uv run python -c "
 import json
 a=[json.loads(l) for l in open('data/release/c1.jsonl')]
 b=[json.loads(l) for l in open('data/release/c16.jsonl')]
-key=lambda r:(r['record_index'], r['metadata']['category'], r['metadata']['priority'],
+key=lambda r:(r['record_index'], r['subdomain'], r['metadata']['category'], r['metadata']['priority'],
               r['metadata']['channel'], r['metadata']['resolution_status'], len(r['turns']))
 assert list(map(key,a))==list(map(key,b))
 print('seeded choices identical across concurrency levels')
@@ -227,7 +231,10 @@ default, not a validated one — say so in any datasheet.
 ## Scale check (SC-001)
 
 `configs/release.toml` requests 100,000 records — on the order of 200,000 model calls before retries and
-discards. Do not run it casually; it is the acceptance run for a release, not part of the test suite.
+discards — and declares a budget (`max_runtime`, `max_model_calls`) so an unattended run has a ceiling. When
+a ceiling is reached the run stops and checkpoints with exit `3`, leaving the partial corpus and its
+accounting intact rather than continuing past it (FR-012f). Do not run it casually; it is the acceptance run
+for a release, not part of the test suite.
 Memory is expected to stay flat: only per-slot state, a bounded reorder buffer, and two digest sets
 (~3 MB each at 100k) are held.
 

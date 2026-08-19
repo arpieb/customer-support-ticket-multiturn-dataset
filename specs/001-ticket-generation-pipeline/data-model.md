@@ -25,7 +25,7 @@ Three families live here and should not be confused:
 | `Priority` | `low`, `normal`, `high`, `urgent` | FR-006 |
 | `Channel` | `email`, `chat`, `phone`, `web_form` | FR-006 |
 | `ResolutionStatus` | `resolved`, `unresolved`, `escalated`, `abandoned` | FR-006 |
-| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `GOVERNMENT_ID`. Advisory: `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor; R8 |
+| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory: `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor stated at identifier-type level; R8 |
 | `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `model_refusal`, `attempts_exhausted` | FR-026; each maps to exactly one requirement |
 | `Verdict` | `pass`, `fail` | FR-036 |
 
@@ -51,7 +51,8 @@ string makes that reconciliation unauditable. Adding a reason is a MINOR change 
 | `run_id` | `str` | yes | Resolves to exactly one `RunManifest` (FR-003, FR-029) |
 | `record_index` | `int` | yes | ≥ 0. The slot this record occupies in the run; dense over `[0, N)` in a complete corpus. Makes SC-013's per-position comparison possible |
 | `source_id` | `str` | yes | The domain prompt document identity: `f"{name}@{sha256[:12]}"` (FR-003, FR-008a) |
-| `scenario` | `str` | yes | The subdomain scenario the model elaborated, non-empty (FR-008b). `source_id` is common to every record and cannot serve this purpose |
+| `subdomain` | `str` | yes | The subdomain assigned to this slot by a seeded choice from the prompt document's declared list (FR-008d, FR-012b). Reproducible from `(seed, position)` — this is what makes deterministic stratification possible |
+| `scenario` | `str` | yes | The specific situation the model elaborated within that subdomain, non-empty (FR-008b). Model text, not reproducible. `source_id` is common to every record and cannot serve either purpose |
 | `metadata` | `TicketMetadata` | yes | See below (FR-006) |
 | `turns` | `list[ConversationTurn]` | yes | Length within the configured range; ordering, alternation, and non-emptiness enforced (FR-009, FR-009d) |
 | `quality` | `RecordQuality` | yes | See below (FR-009i) |
@@ -129,6 +130,8 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `max_attempts_per_slot` | `int` | `3` | ≥ 1; exhausting it discards the slot as `attempts_exhausted` (FR-009c) |
 | `consecutive_failure_limit` | `int` | `50` | Stops and checkpoints rather than burning the corpus (spec Edge Cases) |
 | `checkpoint_interval` | `int` | `100` | Records between checkpoints (FR-015a) |
+| `budget.max_runtime` | `duration \| None` | `None` | Wall-clock ceiling; exhausting it stops and checkpoints rather than failing (FR-012f) |
+| `budget.max_model_calls` | `int \| None` | `None` | Call ceiling, counting generation and judging alike (FR-012f) |
 
 **Validation is total and up front (FR-011)**: an invalid or internally contradictory configuration — an
 unsatisfiable composition, an inverted turn range, a threshold outside `[0,1]`, an existing output path —
@@ -159,7 +162,7 @@ Not persisted in the corpus; the unit of work the pipeline schedules. Every fiel
 | `position` | `int` | `[0, record_count)`; becomes `record_index` |
 | `assignment` | `TicketMetadata` fields | The four apportioned dimensions plus derived timestamps |
 | `turn_count` | `int` | Sampled from the configured range with the slot's own generator (FR-009d) |
-| `scenario_nonce` | `int` | Seeds scenario diversity in the prompt; the elaborated scenario comes back on the record |
+| `subdomain` | `str` | Chosen from the prompt document's declared list with the slot's own generator (FR-008d); the elaborated scenario comes back on the record |
 | `attempt` | `int` | 0-based; part of the derivation key, so a retry re-rolls rather than repeating |
 
 ### RunManifest
@@ -176,6 +179,8 @@ The record of how one run produced its output. Validatable; validation names any
 | `input_hashes` | `map[str, str]` | Path → `sha256`: prompt document, rubric, config file (FR-025, FR-008a, FR-009g) |
 | `models` | `ModelRecord` | Generator and judge identity, parameters, and any sampling seed (FR-027, FR-009j) |
 | `fallbacks_used` | `map[str, int]` | Model ID → count of records it served after a refusal fallback; empty when none (research R1) |
+| `environment_overrides` | `map[str, str]` | Environment settings that could change model selection, routing, or parameters — endpoint, profile, inference region (FR-008c). **Credentials are never recorded**, here or anywhere (FR-008) |
+| `budget` | `Budget \| None` | Declared ceilings and actual spend, with `exhausted` set when a ceiling stopped the run (FR-012f) |
 | `started_at` / `completed_at` | `datetime` | Timezone-aware wall clock — a captured non-deterministic input (Principle II) |
 | `records_generated` | `int` | Every response received from the generating model, counted once per attempt (FR-026a). The shared denominator for every rate expressed as a proportion of records generated |
 | `records_written` | `int` | Records in the artifact |
@@ -293,7 +298,7 @@ pipeline supplies **provenance and metadata**. A model that could write `record_
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `scenario` | `str` | The subdomain scenario elaborated from the prompt document; non-empty (FR-008b) |
+| `scenario` | `str` | The specific situation elaborated **within the subdomain the slot assigned**; non-empty (FR-008b). The model is given the subdomain and does not choose it |
 | `turns` | `list[{role, content}]` | Length must equal the slot's `turn_count`; roles must alternate starting with `customer`; content non-empty (FR-009, FR-009b, FR-009d) |
 
 Any violation is a discard under `structural_invalid` or `turn_count_out_of_range` — never coerced into a
@@ -340,7 +345,8 @@ the staging file — let alone the release path — carrying an unreviewed findi
 ```text
 configured ──validate config──> ready ──assert detector floor──> generating ──> completed ──> released
      │                            │                                   │              │
-     │ FR-011                     │ FR-018 (fails before generating)  │ interrupt    │ threshold exceeded
+     │ FR-011                     │ FR-018 (fails before generating)  │ interrupt or │ threshold exceeded
+     │                            │                                   │ budget spent │
      ▼                            ▼                                   ▼              ▼
   refused                      refused                          checkpointed      failed (artifact not moved)
                                                                        │

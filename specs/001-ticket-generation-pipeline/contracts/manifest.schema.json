@@ -25,17 +25,27 @@
     "composition_requested",
     "composition_achieved",
     "coherence_score_distribution",
-    "output_sha256"
+    "output_sha256",
+    "environment_overrides"
   ],
   "properties": {
-    "manifest_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "run_id": { "type": "string", "minLength": 1 },
+    "manifest_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "schema_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "The record contract version this run wrote against (FR-025)."
     },
-    "seed": { "type": "integer", "description": "The explicit run seed (FR-025, Principle II)." },
+    "seed": {
+      "type": "integer",
+      "description": "The explicit run seed (FR-025, Principle II)."
+    },
     "config": {
       "type": "object",
       "description": "The full serialized configuration, verbatim (FR-025)."
@@ -43,53 +53,93 @@
     "code_revision": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commit", "dirty"],
+      "required": [
+        "commit",
+        "dirty"
+      ],
       "properties": {
-        "commit": { "type": ["string", "null"] },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "dirty": {
           "type": "boolean",
           "description": "True when the working tree had uncommitted changes. A SHA recorded from a dirty tree would misrepresent what produced the artifact (research R10)."
         },
-        "unavailable_reason": { "type": ["string", "null"] }
+        "unavailable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "input_hashes": {
       "type": "object",
       "description": "Path -> sha256 for every run input: prompt document (FR-008a), rubric (FR-009g), config file.",
-      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
       "minProperties": 1
     },
     "models": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["generator", "judge"],
+      "required": [
+        "generator",
+        "judge"
+      ],
       "properties": {
-        "generator": { "$ref": "#/$defs/ModelRecord" },
-        "judge": { "$ref": "#/$defs/ModelRecord" }
+        "generator": {
+          "$ref": "#/$defs/ModelRecord"
+        },
+        "judge": {
+          "$ref": "#/$defs/ModelRecord"
+        }
       },
       "description": "Both roles recorded: the judge shapes which records survive and is therefore a non-deterministic input (FR-009j, FR-027)."
     },
     "fallbacks_used": {
       "type": "object",
-      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
       "description": "Model ID -> records it served after a refusal fallback. Empty when none occurred."
     },
-    "started_at": { "type": "string", "format": "date-time" },
-    "completed_at": { "type": "string", "format": "date-time" },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "records_generated": {
       "type": "integer",
       "minimum": 0,
       "description": "Every response received from the generating model, counted once per attempt; a slot retried three times contributes three (FR-026a). The shared denominator for every discard-rate threshold, so a threshold cannot be computed two ways."
     },
-    "records_written": { "type": "integer", "minimum": 0 },
+    "records_written": {
+      "type": "integer",
+      "minimum": 0
+    },
     "discards": {
       "type": "array",
-      "items": { "$ref": "#/$defs/DiscardAccount" },
+      "items": {
+        "$ref": "#/$defs/DiscardAccount"
+      },
       "description": "Every discarded record by count and reason. Silent dropping is prohibited (Principle III, FR-026)."
     },
     "retry_counts": {
       "type": "object",
-      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
       "description": "Transport retries by class. Deliberately separate from discards: a degraded provider and a defective generator are different facts (FR-012d)."
     },
     "resumed_count": {
@@ -102,31 +152,106 @@
       "minimum": 0,
       "description": "Exact duplicate conversations produced; reported, never discarded (FR-034, research R13)."
     },
-    "composition_requested": { "$ref": "#/$defs/Composition" },
-    "composition_achieved": { "$ref": "#/$defs/Composition" },
+    "composition_requested": {
+      "$ref": "#/$defs/Composition"
+    },
+    "composition_achieved": {
+      "$ref": "#/$defs/Composition"
+    },
     "coherence_score_distribution": {
       "type": "object",
-      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
       "description": "Bucket label -> record count, so corpus quality is visible rather than assumed (SC-009)."
     },
     "output_sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
       "description": "Checksum of the artifact this manifest describes."
+    },
+    "environment_overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Environment settings that could change which model served a request, how it was routed, or its parameters \u2014 endpoint, profile, inference region (FR-008c). Credentials are never recorded here or anywhere else (FR-008). Empty when the environment carried no such setting."
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The declared run budget and the actual spend against it (FR-012f). Absent when no budget was declared.",
+      "required": [
+        "spent_seconds",
+        "spent_model_calls"
+      ],
+      "properties": {
+        "max_runtime_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_model_calls": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "spent_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spent_model_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exhausted": {
+          "type": "boolean",
+          "description": "True when the run stopped because a declared ceiling was reached."
+        }
+      }
     }
   },
   "$defs": {
     "ModelRecord": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model_id", "effort", "max_tokens", "thinking", "sampling_seed"],
+      "required": [
+        "model_id",
+        "effort",
+        "max_tokens",
+        "thinking",
+        "sampling_seed"
+      ],
       "properties": {
-        "model_id": { "type": "string", "minLength": 1 },
-        "effort": { "type": "string", "enum": ["low", "medium", "high", "xhigh", "max"] },
-        "max_tokens": { "type": "integer", "minimum": 1 },
-        "thinking": { "type": "string" },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "thinking": {
+          "type": "string"
+        },
         "sampling_seed": {
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "description": "Null states plainly that no sampling seed was used, rather than implying reproducibility the run cannot deliver (FR-010)."
         }
       }
@@ -134,7 +259,10 @@
     "DiscardAccount": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["reason", "count"],
+      "required": [
+        "reason",
+        "count"
+      ],
       "properties": {
         "reason": {
           "type": "string",
@@ -150,23 +278,43 @@
           ],
           "description": "Closed set: an open-ended reason string would make FR-026's reconciliation unauditable."
         },
-        "count": { "type": "integer", "minimum": 0 }
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "Composition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["category", "priority", "channel", "resolution_status"],
+      "required": [
+        "category",
+        "priority",
+        "channel",
+        "resolution_status"
+      ],
       "properties": {
-        "category": { "$ref": "#/$defs/Distribution" },
-        "priority": { "$ref": "#/$defs/Distribution" },
-        "channel": { "$ref": "#/$defs/Distribution" },
-        "resolution_status": { "$ref": "#/$defs/Distribution" }
+        "category": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "priority": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "channel": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "resolution_status": {
+          "$ref": "#/$defs/Distribution"
+        }
       }
     },
     "Distribution": {
       "type": "object",
-      "additionalProperties": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
       "minProperties": 1,
       "description": "Enum member -> proportion. Sums to 1.0 within epsilon; only members of the corresponding enum are permitted (FR-030, FR-032)."
     }

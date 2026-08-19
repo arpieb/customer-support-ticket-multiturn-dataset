@@ -11,6 +11,7 @@
     "run_id",
     "record_index",
     "source_id",
+    "subdomain",
     "scenario",
     "metadata",
     "turns",
@@ -43,38 +44,60 @@
       "minLength": 1,
       "description": "Domain prompt document identity as name@sha256-prefix (FR-003, FR-008a)."
     },
+    "subdomain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The subdomain assigned to this slot by a seeded choice from the domain prompt document's declared list (FR-008d, FR-012b). Reproducible from the seed, unlike `scenario`."
+    },
     "scenario": {
       "type": "string",
       "minLength": 1,
-      "description": "The subdomain scenario the model elaborated for this record (FR-008b)."
+      "description": "The specific situation the model elaborated within the assigned subdomain (FR-008b). Model text; not reproducible."
     },
-    "metadata": { "$ref": "#/$defs/TicketMetadata" },
+    "metadata": {
+      "$ref": "#/$defs/TicketMetadata"
+    },
     "turns": {
       "type": "array",
       "minItems": 2,
-      "items": { "$ref": "#/$defs/ConversationTurn" },
+      "items": {
+        "$ref": "#/$defs/ConversationTurn"
+      },
       "description": "Ordered conversation turns. No maximum is assumed (spec Edge Cases); the per-run range is a configuration bound, not a contract bound (FR-009d)."
     },
-    "quality": { "$ref": "#/$defs/RecordQuality" },
-    "generation": { "$ref": "#/$defs/GenerationInfo" }
+    "quality": {
+      "$ref": "#/$defs/RecordQuality"
+    },
+    "generation": {
+      "$ref": "#/$defs/GenerationInfo"
+    }
   },
   "$defs": {
     "Role": {
       "type": "string",
-      "enum": ["customer", "agent"],
+      "enum": [
+        "customer",
+        "agent"
+      ],
       "description": "Closed set (FR-005)."
     },
     "ConversationTurn": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["index", "role", "content"],
+      "required": [
+        "index",
+        "role",
+        "content"
+      ],
       "properties": {
         "index": {
           "type": "integer",
           "minimum": 0,
           "description": "Position in the conversation; ascends contiguously from 0 (FR-004)."
         },
-        "role": { "$ref": "#/$defs/Role" },
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
         "content": {
           "type": "string",
           "minLength": 1,
@@ -86,23 +109,51 @@
     "TicketMetadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["category", "priority", "channel", "resolution_status", "created_at"],
+      "required": [
+        "category",
+        "priority",
+        "channel",
+        "resolution_status",
+        "created_at"
+      ],
       "properties": {
         "category": {
           "type": "string",
-          "enum": ["billing", "technical", "account", "shipping", "product", "other"]
+          "enum": [
+            "billing",
+            "technical",
+            "account",
+            "shipping",
+            "product",
+            "other"
+          ]
         },
         "priority": {
           "type": "string",
-          "enum": ["low", "normal", "high", "urgent"]
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "urgent"
+          ]
         },
         "channel": {
           "type": "string",
-          "enum": ["email", "chat", "phone", "web_form"]
+          "enum": [
+            "email",
+            "chat",
+            "phone",
+            "web_form"
+          ]
         },
         "resolution_status": {
           "type": "string",
-          "enum": ["resolved", "unresolved", "escalated", "abandoned"]
+          "enum": [
+            "resolved",
+            "unresolved",
+            "escalated",
+            "abandoned"
+          ]
         },
         "created_at": {
           "type": "string",
@@ -110,7 +161,10 @@
           "description": "Timezone-aware (FR-006)."
         },
         "resolved_at": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "format": "date-time",
           "description": "Must not precede created_at. Required when resolution_status is 'resolved'; absent otherwise. The conditional is enforced by the Pydantic model and by the two allOf branches below."
         }
@@ -118,21 +172,45 @@
       "allOf": [
         {
           "if": {
-            "properties": { "resolution_status": { "const": "resolved" } },
-            "required": ["resolution_status"]
+            "properties": {
+              "resolution_status": {
+                "const": "resolved"
+              }
+            },
+            "required": [
+              "resolution_status"
+            ]
           },
           "then": {
-            "required": ["resolved_at"],
-            "properties": { "resolved_at": { "type": "string" } }
+            "required": [
+              "resolved_at"
+            ],
+            "properties": {
+              "resolved_at": {
+                "type": "string"
+              }
+            }
           }
         },
         {
           "if": {
-            "properties": { "resolution_status": { "not": { "const": "resolved" } } },
-            "required": ["resolution_status"]
+            "properties": {
+              "resolution_status": {
+                "not": {
+                  "const": "resolved"
+                }
+              }
+            },
+            "required": [
+              "resolution_status"
+            ]
           },
           "then": {
-            "properties": { "resolved_at": { "type": "null" } }
+            "properties": {
+              "resolved_at": {
+                "type": "null"
+              }
+            }
           }
         }
       ]
@@ -140,7 +218,10 @@
     "RecordQuality": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["coherence_score", "rubric_id"],
+      "required": [
+        "coherence_score",
+        "rubric_id"
+      ],
       "properties": {
         "coherence_score": {
           "type": "number",
@@ -158,7 +239,10 @@
     "GenerationInfo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model_id", "judge_model_id"],
+      "required": [
+        "model_id",
+        "judge_model_id"
+      ],
       "properties": {
         "model_id": {
           "type": "string",

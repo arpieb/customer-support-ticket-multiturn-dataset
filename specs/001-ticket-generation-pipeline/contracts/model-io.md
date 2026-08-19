@@ -83,7 +83,8 @@ burning the remaining corpus emitting discards (spec Edge Cases).
 prefix caches and the run does not pay for the domain document 100,000 times.
 
 **User message** carries the slot's assignment: the four metadata values, the exact turn count, and the
-scenario nonce that pushes the model toward a distinct subdomain.
+**assigned subdomain**, chosen by a seeded draw from the prompt document's declared list (FR-008d). The
+model elaborates a specific situation within that subdomain; it does not choose the subdomain itself.
 
 **Response schema** (`GeneratedConversation`):
 
@@ -117,7 +118,8 @@ The model returns **content only**. It never sees or writes `record_id`, `run_id
 
 **Post-conditions checked by the pipeline** (each a named discard, never a coercion — FR-009b):
 turn count equals the slot's `turn_count`; roles alternate strictly starting with `customer`; no turn is
-empty or whitespace-only; `scenario` is non-empty.
+empty or whitespace-only; `scenario` is non-empty. The record's `subdomain` is written by the pipeline from
+the slot, never taken from the response.
 
 ---
 
@@ -153,7 +155,7 @@ them, and persisting them would multiply corpus size for no downstream use.
 
 | Artifact | Path | Role |
 |----------|------|------|
-| Domain prompt document | `prompts/domain.md` | The support domain the model elaborates scenarios from. Its hash is a run input; `source_id` derives from it (FR-008a, FR-008b) |
+| Domain prompt document | `prompts/domain.md` | The support domain, **declaring an enumerable list of subdomains** (FR-008d). Its hash is a run input; `source_id` derives from it (FR-008a). A slot's subdomain is a seeded choice from that list; the model elaborates the situation within it |
 | Coherence rubric | `prompts/coherence-rubric.md` | What the judge scores against. Carries `rubric_id` and a version header; its hash is a run input (FR-009g) |
 
 Both are committed files, not strings in code. Changing either changes the manifest's input hashes, so a
@@ -167,3 +169,11 @@ shift in the corpus.
 The domain prompt document and every generated conversation are synthetic by construction. No real support
 transcript, customer record, or operator environment value is ever placed in a prompt (FR-008, Principle
 IV). The privacy scan runs on **output**, offline, and is not a substitute for this.
+
+Credentials are the one thing the pipeline reads from the environment, and they are an access mechanism
+rather than a generation input: they never influence output and are never written to a manifest, report,
+checkpoint, or log (FR-008). Anything else the environment contributes — an alternate endpoint, a profile
+selection, an inference region — **is** capable of changing output and is therefore recorded in the
+manifest as a non-deterministic input (FR-008c). `AnthropicModelClient` surfaces the effective endpoint and
+routing settings for that record; a setting it cannot observe causes the run to refuse rather than proceed
+unrecorded.
