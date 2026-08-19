@@ -109,9 +109,21 @@ from ticket_dataset import (
 not cover `EMAIL`, `PHONE`, `CREDIT_CARD`, `GOVERNMENT_ID`. It is called at run start, so an inadequate
 detector set fails **before** generation rather than after (FR-018).
 
-`scan_record` returns findings carrying record ID, field, category, and detector — never the matched value
-(FR-020) — and reports the fields it examined so a clean result is distinguishable from a scan that
-examined nothing (FR-023).
+`scan_record` returns findings carrying record ID, field, category, detector, and a masked rendering —
+never the matched value (FR-020, FR-020a) — and reports the fields it examined so a clean result is
+distinguishable from a scan that examined nothing (FR-023).
+
+```python
+mask(category: PIICategory, value: str) -> str
+```
+
+Deterministic and irreversible, preserving at most the non-identifying remainder: the domain for an email,
+the issuer range for a payment card, shape and length otherwise. Public because it is what a reviewer
+adjudicates from, so its behavior is a contract rather than a formatting detail.
+
+Records discarded for a privacy finding are appended to the run's quarantine artifact (FR-021b), whose path
+and count appear in the report. `ExceptionStore.approve_from_quarantine(path, record_id, field, category,
+reason)` fingerprints the value in place, so approving never requires the reviewer to handle it.
 
 Adding a detector requires only registering an object satisfying `Detector`; the record contract, the
 finding format, and the gate are untouched (FR-017).
@@ -128,7 +140,8 @@ problems: list[str] = validate_manifest(manifest_dict)   # empty when valid
 
 `validate_manifest` checks contract conformance **and** the reconciliation rule
 `records_generated - sum(discards) == records_written`, naming any missing element or discrepancy (FR-026,
-FR-028).
+FR-028). `records_generated` counts every generator response, once per attempt (FR-026a) — the same
+denominator every discard-rate threshold divides by, so a threshold cannot be computed two ways.
 
 `RunReport` is the single object from which the JSON output, the human rendering, and the CLI exit status
 are all derived (FR-035, FR-036) — disagreement between them is structurally impossible rather than a thing

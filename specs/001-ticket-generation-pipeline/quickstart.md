@@ -67,9 +67,11 @@ Run with the seeded-defect prompt document, which deliberately elicits identifie
 uv run ticket-dataset generate --config configs/planted-pii.toml --seed 7
 ```
 
-**Expect**: exit `1`. Flagged records are discarded under `privacy_finding`; the discard rate exceeds the
-0.5% threshold, so the run fails and **nothing is moved into `data/release/`**. The report names each
-finding by record ID, field, category, and detector, and never reproduces the matched value.
+**Expect**: exit `1`. Flagged records are discarded under `privacy_finding` and appended to
+`data/interim/<run_id>/quarantine.jsonl`; the discard rate — `privacy_finding` discards divided by every
+generator response across all attempts (FR-026a) — exceeds the 0.5% threshold, so the run fails and
+**nothing is moved into `data/release/`**. The report names each finding by record ID, field, category,
+detector, and a masked rendering, never the matched value, and cites the quarantine path and count.
 
 ```bash
 ls data/release/                     # planted-pii.jsonl absent
@@ -79,12 +81,17 @@ uv run python -m json.tool data/interim/<run_id>/report.json | head -40
 Then approve one finding and confirm it stops blocking while staying visible:
 
 ```bash
-uv run ticket-dataset privacy approve --category EMAIL --reason "synthetic domain, reviewed 2026-08-19"
+uv run ticket-dataset privacy approve \
+  --from-quarantine data/interim/<run_id>/quarantine.jsonl \
+  --record-id <id> --field turns[3].content --category EMAIL \
+  --reason "synthetic domain, reviewed 2026-08-19"
 uv run ticket-dataset privacy scan data/interim/<run_id>/records.partial.jsonl
 ```
 
 **Expect**: the finding appears as an approved exception rather than a blocker (FR-022), and
-`privacy/exceptions.json` contains a fingerprint — not the value.
+`privacy/exceptions.json` contains a fingerprint — not the value. The masked rendering in the report
+(`…@example.com`) is usually enough to reach that judgment without opening quarantine at all; quarantine is
+the fallback for findings a mask cannot settle.
 
 **Detector floor.** Deregister a floor category in a test fixture and start a run: it must refuse with exit
 `2` **before** generating anything (FR-018).

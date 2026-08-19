@@ -79,7 +79,7 @@
     "records_generated": {
       "type": "integer",
       "minimum": 0,
-      "description": "Model responses received across all attempts (FR-026)."
+      "description": "Every response received from the generating model, counted once per attempt; a slot retried three times contributes three (FR-026a). The shared denominator for every discard-rate threshold, so a threshold cannot be computed two ways."
     },
     "records_written": { "type": "integer", "minimum": 0 },
     "discards": {

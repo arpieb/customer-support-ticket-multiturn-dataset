@@ -56,7 +56,8 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 ## Privacy Gate Requirements
 
-- [ ] CHK029 FR-021 discards flagged records, while FR-022 lets a reviewer approve a finding as a legitimate synthetic value. If the flagged record was discarded and never written, and FR-020 forbids reporting the matched value, **what does the reviewer inspect in order to approve it**? Are the two requirements jointly satisfiable? [Conflict, Spec §FR-021, §FR-022, §FR-020]
+- [x] CHK029 FR-021 discards flagged records, while FR-022 lets a reviewer approve a finding as a legitimate synthetic value. If the flagged record was discarded and never written, and FR-020 forbids reporting the matched value, **what does the reviewer inspect in order to approve it**? Are the two requirements jointly satisfiable? [Conflict, Spec §FR-021, §FR-022, §FR-020]
+  - **Resolved 2026-08-19** — they were not jointly satisfiable as written. Spec amended: **FR-020a** adds a deterministic, irreversible **masked rendering** to every finding (domain for an email, issuer range for a card, shape and length otherwise), which settles the common synthetic cases without reproducing the value; **FR-021b** retains privacy-discarded records in a **quarantine artifact** under `data/interim/`, never committed and never dataset output, for findings a mask cannot settle. FR-022 now states that a reviewer must be able to decide from one or the other and need not have observed the original run. Assumptions record why quarantine is compatible with Principle IV: the content is fabricated and merely identifier-shaped, and the requirement is about the provenance of content, not its shape.
 - [ ] CHK030 Is the authoritative list of **scanned fields** stated in the requirements? The record carries model-generated free text in `scenario` as well as in turn content; the Edge Cases say "every field carrying free text" without naming them. [Gap, Spec §FR-023, §Edge Cases]
 - [ ] CHK031 Does FR-018's term "government identifiers" match what an offline detector can actually cover (in practice, US SSN), or does it promise coverage of non-US identifiers that nothing detects — the exact overclaim FR-019 exists to prevent? [Conflict, Spec §FR-018, §FR-019]
 - [ ] CHK032 The design places the privacy scan **last**, after coherence judging, so a record discarded for incoherence is never scanned. Is it specified whether privacy scanning must cover records that failed an earlier gate, and does the FR-021a discard rate become unrepresentative if it does not? [Consistency, Coverage, Spec §FR-016, §FR-021a, Design-only]
@@ -89,7 +90,8 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 ## Thresholds, Reporting & Run Outcome Requirements
 
-- [ ] CHK053 FR-021a and FR-009k both express a threshold as a percentage "of records generated". Is the **denominator** defined — slots attempted, model responses received including retries, or records written? Each yields a different rate from the same run. [Ambiguity, Measurability, Spec §FR-021a, §FR-009k]
+- [x] CHK053 FR-021a and FR-009k both express a threshold as a percentage "of records generated". Is the **denominator** defined — slots attempted, model responses received including retries, or records written? Each yields a different rate from the same run. [Ambiguity, Measurability, Spec §FR-021a, §FR-009k]
+  - **Resolved 2026-08-19** — spec amended with **FR-026a**, one definition governing every rate expressed as a proportion of records generated: *every response received from the generating model, counted once per attempt*. A slot retried three times contributes three. This is the only reading under which FR-026's reconciliation closes, since every counted response either becomes a written record or is discarded under exactly one reason. The consequence is recorded in the requirement rather than left to be discovered: heavy retries enlarge the denominator and therefore **dilute** both discard rates.
 - [ ] CHK054 Is it specified **when** run-level thresholds are evaluated — continuously so a doomed run stops early, or only at completion? At release scale the difference is most of the cost of the run. [Gap, Spec §FR-009k, §FR-021a, §SC-001]
 - [ ] CHK055 FR-036 requires the run to "signal success or failure unambiguously". Is the outcome taxonomy specified — refused before generating, failed a threshold, interrupted — or only a binary? These call for different operator responses. [Clarity, Spec §FR-036]
 - [ ] CHK056 Is the report's **format and location** established by the requirements, or only that it be machine-readable? [Gap, Spec §FR-035, §FR-036]
@@ -113,9 +115,12 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
   deliberate decision that the gap is acceptable — but not by leaving it unexamined.
 - The highest-value items are the `[Conflict]` ones — CHK001 (credentials versus "no hidden environment
   state"), CHK013 (who selects the scenario), CHK018 (a success criterion referencing a configuration field
-  that does not exist), CHK029 (approving an exception for a record that was discarded and never written),
-  and CHK031 (a floor promising more than any offline detector delivers). Each is two requirements
-  disagreeing, not a gap, so no amount of careful implementation resolves them.
+  that does not exist), ~~CHK029~~ (resolved), and CHK031 (a floor promising more than any offline detector
+  delivers). Each is two requirements disagreeing, not a gap, so no amount of careful implementation
+  resolves them.
+- **Resolved so far**: CHK029 and CHK053, on 2026-08-19, by amending the spec (FR-020a, FR-021b, FR-022,
+  FR-026a) and propagating through `plan.md`, `data-model.md`, `contracts/`, and `quickstart.md`. Four
+  conflicts remain open.
 - `[Design-only]` items mark constraints that exist in `plan.md`, `data-model.md`, or `contracts/` but not
   in the spec. A design document is not a requirement: an implementer following the spec alone would never
   learn them, and a future revision could drop them without any requirement noticing.

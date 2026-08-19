@@ -73,10 +73,12 @@ offending records.
 
 1. **Given** generated output containing a value shaped like a real email address, phone number, payment
    card, or government identifier, **When** the pipeline scans it, **Then** each finding is reported with
-   its record identifier, the field it appeared in, and the category detected.
+   its record identifier, the field it appeared in, the category detected, and a masked rendering that
+   never reproduces the matched value.
 2. **Given** any unreviewed privacy finding, **When** the run completes its scan, **Then** the output does
    not reach the release path and the blocking reason is reported.
-3. **Given** a finding a reviewer has recorded as an approved synthetic value with a stated reason,
+3. **Given** a finding a reviewer has adjudicated — from its masked rendering, or from the quarantined
+   record when the mask is insufficient — and recorded as an approved synthetic value with a stated reason,
    **When** a later run produces the same content, **Then** it no longer blocks, but remains visible in the
    run's report as an approved exception.
 4. **Given** output with no detectable identifiers, **When** the scan completes, **Then** it reports a clean
@@ -245,7 +247,7 @@ stated tolerance.
   survive (Constitution Principle II).
 - **FR-009k**: A coherence discard rate above a configured threshold MUST fail the run, because a generator
   whose output is mostly rejected is defective and filtering around it would mask the defect. The threshold
-  defaults to **10%** of records generated.
+  defaults to **10%** of records generated, with "records generated" as defined in FR-026a.
 - **FR-009l**: A judge failure MUST NOT silently admit an unjudged record. If a record cannot be scored
   after the configured retries, it MUST be discarded and accounted for under a distinct reason.
 - **FR-009c**: The generator MUST tolerate transient model failures without losing completed work — a
@@ -303,16 +305,30 @@ stated tolerance.
   never mistaken for coverage the scan does not provide.
 - **FR-020**: Every privacy finding MUST report the record identifier, the field, the category detected, and
   the detector that reported it — and MUST NOT reproduce the matched value itself.
+- **FR-020a**: Every privacy finding MUST additionally carry a **masked rendering** of the matched value —
+  enough context for a reviewer to recognize a deliberately synthetic value without reproducing the value
+  itself. Masking MUST be deterministic, MUST preserve at most the non-identifying remainder of the value
+  (for an email, the domain; for a payment card, the issuer range; for other categories, length and shape
+  alone), and MUST NOT be reversible. A masked rendering is not the matched value and does not violate
+  FR-020.
 - **FR-021**: A record carrying an unreviewed privacy finding MUST NOT reach the release path. Such records
   MUST be discarded and accounted for under a distinct privacy discard reason, and the remainder of the
   corpus MUST proceed; the gate MUST NOT be advisory and MUST NOT pass a flagged record through.
+- **FR-021b**: A record discarded for a privacy finding MUST be retained in a **quarantine artifact**
+  outside the release path, so that a reviewer has something to adjudicate when the masked rendering alone
+  is insufficient. The quarantine artifact MUST be identified in the run report, MUST NOT be committed to
+  the repository, and MUST NOT be treated as dataset output. Without it, FR-022's approval has no input:
+  the record is gone and FR-020 withholds the value, leaving a reviewer asked to judge something no
+  artifact contains.
 - **FR-021a**: The run report MUST state how many records were discarded for privacy reasons. A discard rate
   above a configured threshold MUST fail the run, because a generator emitting identifiers at volume is
   defective and filtering around it would mask the defect. The threshold defaults to **0.5%** of records
-  generated — synthetic content should almost never trip the scanner, so a higher rate signals a real defect
-  rather than noise.
+  generated, as defined in FR-026a — synthetic content should almost never trip the scanner, so a higher
+  rate signals a real defect rather than noise.
 - **FR-022**: Reviewers MUST be able to record a reviewed finding as an approved exception with a stated
   reason; approved exceptions MUST remain visible in the run report and MUST NOT store the matched value.
+  A reviewer MUST be able to reach that decision from the masked rendering (FR-020a) or from the quarantine
+  artifact (FR-021b), and MUST NOT be required to have observed the original run.
 - **FR-023**: The scan MUST report how many records and fields it examined and which detectors ran, so a
   clean result is distinguishable from a scan that examined nothing.
 - **FR-024**: Every detector MUST operate without contacting a network service, so the gate is runnable
@@ -324,6 +340,13 @@ stated tolerance.
   code revision, the identifying hashes of all inputs, the schema version, and the output record count.
 - **FR-026**: The manifest MUST account for every discarded record by count and by reason, such that input
   count minus all discards equals output count.
+- **FR-026a**: **"Records generated" means every response received from the generating model, counted once
+  per attempt.** A slot retried three times contributes three. Every counted response either becomes a
+  written record or is discarded under exactly one reason, so FR-026's arithmetic closes as
+  `records generated − all discards = records written`. This one definition governs every rate expressed
+  as a proportion of records generated — FR-009k and FR-021a included — so that a threshold cannot be
+  computed two ways. Note the consequence: a run with heavy retries has a larger denominator, so both
+  discard rates are diluted rather than inflated by retrying.
 - **FR-027**: The manifest MUST record non-deterministic inputs — including any generation model identity
   and parameters — so a run that cannot be replayed exactly can still be audited.
 - **FR-028**: The manifest MUST be validatable, and validation MUST name any missing required element.
@@ -432,6 +455,13 @@ stated tolerance.
   are accommodated by enumerating them in the schema rather than by relaxing coherence expectations.
 - **English-first, not English-only**: Initial content is expected to be English, but nothing may assume it;
   multilingual and non-Latin content must be valid.
+- **Quarantined records are synthetic, not personal data**: A record held in quarantine (FR-021b) is
+  fabricated content that a pattern detector found identifier-shaped — not a real identifier. That is why
+  retaining it under the project's intermediate output is compatible with the constitution's requirement
+  that no real personal data enter `data/` in any form: the requirement is about provenance of the content,
+  not about its shape. The quarantine artifact is never committed and is never dataset output, and the
+  approved-exception file continues to store fingerprints rather than values, so nothing identifier-shaped
+  accumulates in the repository itself.
 - **The blocking floor is bounded by what offline detection can do**: The mandatory categories are those an
   offline pattern detector covers with high precision. Full postal addresses, bank account numbers, and
   person names are NOT gated — reliable offline detection of them is unavailable — and this residual risk is

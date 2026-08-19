@@ -120,8 +120,8 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `composition` | `Composition \| None` | `None` | When absent, the documented default distribution applies (FR-033) |
 | `turns.min` / `turns.max` | `int` | `4` / `12` | `2 ≤ min ≤ max`; a `min` below 2 cannot be a two-party exchange (FR-009d, FR-009e, FR-033) |
 | `coherence.threshold` | `float` | `0.8` | `0.0–1.0` (FR-009h) |
-| `coherence.max_discard_rate` | `float` | `0.10` | Exceeding it fails the run (FR-009k) |
-| `privacy.max_discard_rate` | `float` | `0.005` | Exceeding it fails the run (FR-021a) |
+| `coherence.max_discard_rate` | `float` | `0.10` | `coherence_below_threshold` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-009k) |
+| `privacy.max_discard_rate` | `float` | `0.005` | `privacy_finding` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-021a) |
 | `composition_tolerance_pp` | `float` | `2.0` | Percentage points per controlled dimension; exceeding it fails the run (FR-031) |
 | `models.generator` / `models.judge` | `ModelSpec` | `claude-opus-5` | Model ID, effort, `max_tokens`; recorded in the manifest (FR-027) |
 | `max_concurrency` | `int` | `8` | ≥ 1 (FR-012a) |
@@ -177,7 +177,7 @@ The record of how one run produced its output. Validatable; validation names any
 | `models` | `ModelRecord` | Generator and judge identity, parameters, and any sampling seed (FR-027, FR-009j) |
 | `fallbacks_used` | `map[str, int]` | Model ID → count of records it served after a refusal fallback; empty when none (research R1) |
 | `started_at` / `completed_at` | `datetime` | Timezone-aware wall clock — a captured non-deterministic input (Principle II) |
-| `records_generated` | `int` | Model responses received, across all attempts (FR-026) |
+| `records_generated` | `int` | Every response received from the generating model, counted once per attempt (FR-026a). The shared denominator for every rate expressed as a proportion of records generated |
 | `records_written` | `int` | Records in the artifact |
 | `discards` | `list[DiscardAccount]` | Every discarded record by count and reason (FR-026) |
 | `retry_counts` | `map[str, int]` | Transport retries by class — distinct from discards (FR-012d) |
@@ -187,8 +187,10 @@ The record of how one run produced its output. Validatable; validation names any
 | `coherence_score_distribution` | `Histogram` | Bucketed score counts across the corpus (SC-009) |
 | `output_sha256` | `str` | Checksum of the artifact, so the manifest binds to a specific file |
 
-**Reconciliation rule (FR-026, SC-005)**:
-`records_generated - sum(d.count for d in discards) == records_written`.
+**Reconciliation rule (FR-026, FR-026a, SC-005)**:
+`records_generated - sum(d.count for d in discards) == records_written`. It closes because every counted
+response either becomes a written record or is discarded under exactly one reason — a slot retried three
+times contributes three to `records_generated` and, if it never succeeds, three to the discard tallies.
 A manifest failing this is invalid and validation names the discrepancy. This holds **across a resume**
 because the tallies are carried in the checkpoint and merged into one manifest (FR-015c).
 
@@ -240,8 +242,23 @@ Persisted at `data/interim/<run_id>/checkpoint.json` (research R6).
 
 | Entity | Fields | Rules |
 |--------|--------|-------|
-| `PrivacyFinding` | `record_id`, `field`, `category`, `detector`, `status` | **Never** carries the matched value (FR-020) |
+| `PrivacyFinding` | `record_id`, `field`, `category`, `detector`, `status`, `masked` | **Never** carries the matched value (FR-020). `masked` is a deterministic, irreversible rendering that preserves at most the non-identifying remainder — domain for an email, issuer range for a card, shape and length otherwise (FR-020a) |
 | `ApprovedException` | `fingerprint`, `category`, `reason`, `approved_on` | `sha256(category + ":" + normalized_value)`; committed at `privacy/exceptions.json`; never the raw value (FR-022, research R9) |
+
+### Quarantine
+
+Records discarded for a privacy finding are appended to `data/interim/<run_id>/quarantine.jsonl` (FR-021b).
+Without it, FR-022's approval has no input: the record is gone and FR-020 withholds the value.
+
+| Property | Rule |
+|----------|------|
+| Location | Under `data/interim/` — never the release path, never committed (`data/` is git-ignored) |
+| Contents | The full discarded record, plus the findings that flagged it |
+| Visibility | The run report names the quarantine path and its record count, so its existence is never implicit |
+| Status | Not dataset output. Nothing downstream may read it as a corpus |
+
+A quarantined record is fabricated content that a pattern detector found identifier-shaped — not a real
+identifier — which is why retaining it is compatible with Principle IV (spec Assumptions).
 
 ### RunReport
 
@@ -254,7 +271,7 @@ three cannot disagree (FR-035, FR-036).
 | `run_id`, `schema_version` | `str` | Ties the report to the run and the contract |
 | `records_generated` / `records_written` | `int` | (FR-035) |
 | `discards` | `list[DiscardAccount]` | By reason (FR-035) |
-| `privacy` | `PrivacyReport` | Findings, `detectors_run`, `declared_gaps`, `records_examined`, `fields_examined`, approved exceptions (FR-019, FR-020, FR-023) |
+| `privacy` | `PrivacyReport` | Findings with masked renderings, `detectors_run`, `declared_gaps`, `records_examined`, `fields_examined`, approved exceptions, and the quarantine path and count (FR-019, FR-020, FR-020a, FR-021b, FR-023) |
 | `composition_requested` / `composition_achieved` | `Composition` | Both (FR-031) |
 | `coherence_score_distribution` | `Histogram` | (SC-009) |
 | `duplicate_count` | `int` | (FR-034) |
@@ -311,6 +328,8 @@ assigned ──generate──> generated ──structural──> structured ─�
               │ schema_invalid             │ finding                      │
               ▼                            ▼                              ▼
           discarded(schema_invalid)   discarded(privacy_finding)   accounted in manifest
+                                           │
+                                           └──> quarantine.jsonl (FR-021b)
 ```
 
 Order is load-bearing: the privacy scan is the **last** gate before a record is written, so nothing reaches

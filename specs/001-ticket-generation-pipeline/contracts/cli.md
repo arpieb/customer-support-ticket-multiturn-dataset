@@ -31,7 +31,7 @@ observable without polluting stdout.
 | Code | Meaning |
 |------|---------|
 | `0` | Corpus written to the release path; every threshold satisfied |
-| `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
+| `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance — each computed over `records_generated` per FR-026a) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
 | `2` | Refused before generating: invalid config, unsatisfiable composition, existing output path, detector floor not covered, or a resume whose inputs no longer match (FR-011, FR-018, FR-032, FR-015e) |
 | `3` | Interrupted; progress checkpointed and resumable (FR-015a) |
 
@@ -60,8 +60,9 @@ re-checking an artifact after the exception file changes.
 | `--report PATH` | path | stdout | Machine-readable findings |
 
 Exit `0` when clean or fully excepted; `1` when unreviewed findings exist. Findings name record ID, field,
-category, and detector, and **never** reproduce the matched value (FR-020). Every report states the
-detectors that ran, the counts examined, and the declared gaps (FR-019, FR-023).
+category, detector, and a masked rendering, and **never** reproduce the matched value (FR-020, FR-020a).
+Every report states the detectors that ran, the counts examined, the declared gaps, and the quarantine path
+and count when a generation run produced one (FR-019, FR-021b, FR-023).
 
 ---
 
@@ -73,10 +74,16 @@ Record a reviewed finding as an approved exception.
 |--------|------|-------|
 | `--category` | enum | The PII category of the finding |
 | `--value` | str | The value, read from stdin or a prompt — **fingerprinted immediately and never written** (research R9) |
+| `--from-quarantine PATH --record-id ID --field F` | path/str | Alternative to `--value`: read the value straight out of the quarantine artifact, so the reviewer never has to retype or paste it (FR-021b) |
 | `--reason` | str | **Required.** The reviewer's stated justification (FR-022) |
 
 Appends `{fingerprint, category, reason, approved_on}` to the exception file. The file is committed; it
 never contains a raw value.
+
+**Where the reviewer's judgment comes from**: the masked rendering in the report settles the common cases
+(a synthetic domain, a 555 number, a test card range). When it does not, the quarantined record is the
+fallback — which is why FR-021b exists. Without one of the two, approval would be a judgment about
+something no artifact contains.
 
 ---
 
