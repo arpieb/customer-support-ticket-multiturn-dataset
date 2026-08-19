@@ -205,6 +205,16 @@ stated tolerance.
   version it was written against.
 - **FR-003**: Each record MUST provide a stable record identifier, the run identifier that produced it, the
   source or template it derives from, and its schema version.
+- **FR-003a**: The run identifier MUST be generated fresh for each run instance and carried in the run's
+  checkpoint, so that a **resumed** run continues under the identifier it started with while a **rerun** —
+  even one with the same seed and configuration — receives a new one. Deriving the run identifier from the
+  inputs would make two legitimate reruns indistinguishable and would give two separate corpora the same
+  record identifiers.
+- **FR-003b**: The record identifier MUST be derived deterministically from the run identifier and the
+  record's position in the run. Uniqueness within a run is then structural rather than checked, and
+  uniqueness across runs follows from FR-003a. This is what lets a resumed run satisfy FR-015b by
+  construction: regenerating a position yields the identifier that position always had, so no identifier
+  can be issued twice and none can be skipped.
 - **FR-004**: Each conversation turn MUST identify its speaker role, its position in the conversation, and
   its content.
 - **FR-005**: Permitted speaker roles MUST be enumerated in the definition; any other value is invalid.
@@ -363,7 +373,19 @@ stated tolerance.
 **Run manifest and provenance**
 
 - **FR-025**: Every run MUST write a manifest recording the seed, the full serialized configuration, the
-  code revision, the identifying hashes of all inputs, the schema version, and the output record count.
+  code revision, the identifying hashes of all inputs, the schema version, the output record count, and the
+  times the run started and completed. The timestamps are required because Principle II names wall-clock
+  time as a non-deterministic input to capture, and because the elapsed time of a run is part of what a
+  later reader needs to judge whether it can be repeated.
+- **FR-025a**: The manifest MUST record the code revision **with an explicit indicator of whether the
+  working tree was modified**, and MUST state why the revision is unavailable when it cannot be determined.
+  A revision recorded from a modified tree silently misrepresents what produced the artifact; the indicator
+  makes that condition reviewable instead of invisible. Neither a modified tree nor an unavailable revision
+  fails a run — recording the caveat truthfully is the requirement, and weighing it belongs to the separate
+  act of deciding to release.
+- **FR-025b**: The manifest MUST identify the artifact it describes by filename and by content checksum, so
+  a manifest cannot be read beside an artifact it does not describe, and so a corpus altered after the fact
+  is detectable.
 - **FR-026**: The manifest MUST account for every discarded record by count and by reason, such that input
   count minus all discards equals output count.
 - **FR-026a**: **"Records generated" means every response received from the generating model, counted once
@@ -373,11 +395,29 @@ stated tolerance.
   as a proportion of records generated — FR-009k and FR-021a included — so that a threshold cannot be
   computed two ways. Note the consequence: a run with heavy retries has a larger denominator, so both
   discard rates are diluted rather than inflated by retrying.
+- **FR-026b**: Discard reasons MUST come from a **closed, documented set**, so that the FR-026 reconciliation
+  is auditable rather than a sum over free text. The permitted reasons are: **structurally invalid model
+  response**, **turn count outside the configured range**, **record failed schema validation**, **coherence
+  below threshold**, **unjudgeable after retries**, **privacy finding**, **model refusal**, and **attempts
+  exhausted**. Adding a reason is an additive change to the manifest contract; using one outside the set is
+  invalid.
 - **FR-027**: The manifest MUST record non-deterministic inputs — including any generation model identity
   and parameters — so a run that cannot be replayed exactly can still be audited.
+- **FR-027a**: When the model that serves a request may differ from the model configured — because a request
+  was rescued after a refusal, or routed elsewhere — **each record MUST carry the identity of the model that
+  actually produced it**, and the manifest MUST additionally report how many records each model served. A
+  single run-level model identity would be false for part of the corpus, and provenance that is false for an
+  unidentifiable subset is worse than provenance that is absent.
 - **FR-028**: The manifest MUST be validatable, and validation MUST name any missing required element.
+  Validation MUST also check the FR-026 reconciliation arithmetic and name the discrepancy when the counts
+  do not close — a manifest whose fields are all present but whose accounting does not balance is not valid,
+  and presence checking alone would pass exactly the manifests worth catching.
 - **FR-029**: Every record MUST be traceable to the manifest of the run that produced it using only the
   record's own fields.
+- **FR-029a**: A run's manifest MUST be written beside its artifact and **named by the run identifier**, so
+  that a record's own `run_id` locates the manifest file directly. Without a naming rule, FR-029's claim is
+  unachievable: a record carries an identifier, not a path, and someone holding a single record would have
+  no way to find the run that produced it — which is precisely the investigation FR-029 exists to support.
 
 **Composition control**
 

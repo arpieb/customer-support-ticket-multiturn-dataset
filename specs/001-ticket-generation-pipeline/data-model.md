@@ -26,15 +26,16 @@ Three families live here and should not be confused:
 | `Channel` | `email`, `chat`, `phone`, `web_form` | FR-006 |
 | `ResolutionStatus` | `resolved`, `unresolved`, `escalated`, `abandoned` | FR-006 |
 | `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory: `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor stated at identifier-type level; R8 |
-| `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `model_refusal`, `attempts_exhausted` | FR-026; each maps to exactly one requirement |
+| `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `model_refusal`, `attempts_exhausted` | **FR-026b** enumerates this closed set normatively; each member maps to exactly one requirement |
 | `Verdict` | `pass`, `fail` | FR-036 |
 
 `Role`, `Category`, `Priority`, `Channel`, and `ResolutionStatus` are **closed sets** — any other value is a
 validation failure (FR-005, FR-006). Removing a member or tightening a constraint is a breaking change
 requiring a MAJOR bump (Principle I).
 
-`DiscardReason` is closed on purpose: FR-026 requires input − discards = output, and an open-ended reason
-string makes that reconciliation unauditable. Adding a reason is a MINOR change to the manifest contract.
+`DiscardReason` is closed on purpose and closed **by requirement** (FR-026b), not by design preference:
+FR-026 requires records generated − discards = records written, and an open-ended reason string makes that
+reconciliation a sum over free text. Adding a reason is a MINOR change to the manifest contract.
 
 ---
 
@@ -47,8 +48,8 @@ string makes that reconciliation unauditable. Adding a reason is a MINOR change 
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
 | `schema_version` | `str` | yes | `MAJOR.MINOR.PATCH` (FR-002). Every record declares the version it was written against |
-| `record_id` | `str` | yes | UUIDv5 over `f"{run_id}/{record_index}"` in a project namespace — stable, unique, and **not reissuable** across a resume (FR-003, FR-015b) |
-| `run_id` | `str` | yes | Resolves to exactly one `RunManifest` (FR-003, FR-029) |
+| `record_id` | `str` | yes | UUIDv5 over `f"{run_id}/{record_index}"` in a project namespace (FR-003b). Unique within a run structurally; unique across runs because `run_id` is fresh per run instance (FR-003a). A resumed run regenerating a position yields the identifier that position always had, so FR-015b holds by construction |
+| `run_id` | `str` | yes | UUIDv4 generated once per run instance and carried in the checkpoint, so a resume keeps it and a rerun gets a new one (FR-003a). Names the manifest file, so a record locates its own provenance (FR-029a) |
 | `record_index` | `int` | yes | ≥ 0. The slot this record occupies in the run; dense over `[0, N)` in a complete corpus. Makes SC-013's per-position comparison possible |
 | `source_id` | `str` | yes | The domain prompt document identity: `f"{name}@{sha256[:12]}"` (FR-003, FR-008a) |
 | `subdomain` | `str` | yes | The subdomain assigned to this slot by a seeded choice from the prompt document's declared list (FR-008d, FR-012b). Reproducible from `(seed, position)` — this is what makes deterministic stratification possible |
@@ -60,9 +61,11 @@ string makes that reconciliation unauditable. Adding a reason is a MINOR change 
 
 **Relationships**: 1→N `ConversationTurn` (ordered); 1→1 `TicketMetadata`; N→1 `RunManifest` via `run_id`.
 
-**Traceability (FR-029)**: `run_id` + `record_index` + `source_id` + `schema_version` are sufficient to
-locate the manifest, the slot, the prompt document version, and the contract — using only the record's own
-fields, with no external index.
+**Traceability (FR-029, FR-029a)**: `run_id` + `record_index` + `source_id` + `schema_version` are
+sufficient to locate the manifest, the slot, the prompt document version, and the contract — using only the
+record's own fields and no external index. The manifest is *findable* because it is named `<run_id>.manifest.json`
+beside the artifact; without that naming rule the claim would be unachievable, since a record carries an
+identifier rather than a path.
 
 ### ConversationTurn
 
@@ -100,7 +103,7 @@ model. That is what makes FR-031's tolerance achievable by construction.
 
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
-| `model_id` | `str` | yes | The model that actually produced the text. Recorded per record because a refusal fallback can change it mid-run (FR-027, research R1) |
+| `model_id` | `str` | yes | The model that **actually** produced the text, which a refusal fallback can change mid-run. Required per record by FR-027a: a single run-level identity would be false for part of the corpus, and provenance false for an unidentifiable subset is worse than none |
 | `judge_model_id` | `str` | yes | The model that actually scored the record, for the same reason |
 
 ---
@@ -178,7 +181,7 @@ The record of how one run produced its output. Validatable; validation names any
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `run_id` | `str` | Referenced by every record the run produced (FR-003) |
+| `run_id` | `str` | Referenced by every record the run produced (FR-003), and **the manifest's own filename**: `<run_id>.manifest.json`, written beside the artifact (FR-029a) |
 | `schema_version` | `str` | The contract version records were written against (FR-025) |
 | `seed` | `int` | The explicit seed (FR-025, Principle II) |
 | `config` | `object` | The full serialized configuration, verbatim (FR-025) |
@@ -188,7 +191,7 @@ The record of how one run produced its output. Validatable; validation names any
 | `fallbacks_used` | `map[str, int]` | Model ID → count of records it served after a refusal fallback; empty when none (research R1) |
 | `environment_overrides` | `map[str, str]` | Environment settings that could change model selection, routing, or parameters — endpoint, profile, inference region (FR-008c). **Credentials are never recorded**, here or anywhere (FR-008) |
 | `budget` | `Budget \| None` | Declared ceilings and actual spend, with `exhausted` set when a ceiling stopped the run (FR-012f) |
-| `started_at` / `completed_at` | `datetime` | Timezone-aware wall clock — a captured non-deterministic input (Principle II) |
+| `started_at` / `completed_at` | `datetime` | Timezone-aware wall clock — required by FR-025, and a captured non-deterministic input (Principle II) |
 | `records_generated` | `int` | Every response received from the generating model, counted once per attempt (FR-026a). The shared denominator for every rate expressed as a proportion of records generated |
 | `records_written` | `int` | Records in the artifact |
 | `discards` | `list[DiscardAccount]` | Every discarded record by count and reason (FR-026) |
@@ -197,7 +200,8 @@ The record of how one run produced its output. Validatable; validation names any
 | `duplicate_count` | `int` | Exact duplicate conversations produced (FR-034) |
 | `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three, always (FR-031a). Requested → assigned is apportionment error; assigned → achieved is discard-induced drift. Without the middle term a tolerance failure has no attributable cause |
 | `coherence_score_distribution` | `Histogram` | Bucketed score counts across the corpus (SC-009) |
-| `output_sha256` | `str` | Checksum of the artifact, so the manifest binds to a specific file |
+| `output_filename` | `str` | The artifact this manifest describes (FR-025b) |
+| `output_sha256` | `str` | Checksum of that artifact, so a manifest cannot be read beside a file it does not describe and post-hoc alteration is detectable (FR-025b) |
 
 **Reconciliation rule (FR-026, FR-026a, SC-005)**:
 `records_generated - sum(d.count for d in discards) == records_written`. It closes because every counted
@@ -214,8 +218,9 @@ because the tallies are carried in the checkpoint and merged into one manifest (
 | `dirty` | `bool` | True when the working tree had uncommitted changes (research R10) |
 | `unavailable_reason` | `str \| None` | Set when `commit` is `None` |
 
-A dirty or unavailable revision does not fail manifest validation — it records the caveat truthfully rather
-than misrepresenting provenance.
+A dirty or unavailable revision fails neither manifest validation nor the run (FR-025a): it records the
+caveat truthfully rather than misrepresenting provenance. Weighing that caveat belongs to the separate act
+of deciding to release.
 
 #### ModelRecord / ModelSpec
 

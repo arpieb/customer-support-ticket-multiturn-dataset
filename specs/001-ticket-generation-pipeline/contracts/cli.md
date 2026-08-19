@@ -45,7 +45,11 @@ The distinction between `1` and `2` is the point: `2` means nothing was generate
 Check a manifest against the manifest contract and its reconciliation rule (FR-028).
 
 Exit `0` when valid; `1` when invalid, naming every missing or inconsistent element — including a failed
-`records_generated - discards == records_written` (FR-026).
+`records_generated - discards == records_written` (FR-026), a discard reason outside the closed set
+(FR-026b), or a checksum that does not match the artifact beside it (FR-025b).
+
+Manifests are named `<run_id>.manifest.json` and written beside the artifact (FR-029a), so a record's own
+`run_id` finds its provenance without knowing which corpus it came from.
 
 ---
 

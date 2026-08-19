@@ -26,6 +26,7 @@
     "composition_assigned",
     "composition_achieved",
     "coherence_score_distribution",
+    "output_filename",
     "output_sha256",
     "environment_overrides"
   ],
@@ -36,7 +37,8 @@
     },
     "run_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Referenced by every record the run produced, and the manifest's own filename (FR-003a, FR-029a). Fresh per run instance; a resume keeps it, a rerun gets a new one."
     },
     "schema_version": {
       "type": "string",
@@ -170,6 +172,11 @@
         "minimum": 0
       },
       "description": "Bucket label -> record count, so corpus quality is visible rather than assumed (SC-009)."
+    },
+    "output_filename": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The artifact this manifest describes (FR-025b). The manifest itself is named <run_id>.manifest.json and sits beside it (FR-029a)."
     },
     "output_sha256": {
       "type": "string",

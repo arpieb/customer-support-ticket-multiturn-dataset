@@ -107,12 +107,21 @@ the fallback for findings a mask cannot settle.
 ## Scenario 3 — Reconstruct how a corpus was produced (US3, SC-005, SC-006)
 
 ```bash
-uv run ticket-dataset validate-manifest data/release/smoke.manifest.json
+RUN_ID=$(head -1 data/release/smoke.jsonl | uv run python -c "import json,sys; print(json.load(sys.stdin)['run_id'])")
+uv run ticket-dataset validate-manifest "data/release/$RUN_ID.manifest.json"
 ```
 
+Note what that first line demonstrates: the manifest was found **from a record**, with no other knowledge —
+manifests are named by run identifier and written beside the artifact (FR-029a), which is what makes FR-029's
+claim achievable rather than aspirational.
+
 **Expect**: exit `0`. The manifest carries the seed, the full configuration, the code revision with its
-dirty flag, the prompt document and rubric hashes, the schema version, both model identities, counts, and
-discards by reason. `records_generated - sum(discards) == records_written` reconciles exactly.
+modified-tree indicator, the prompt document and rubric hashes, the schema version, both model identities,
+run start and end times, the artifact's filename and checksum, counts, and discards drawn from the closed
+reason set. `records_generated - sum(discards) == records_written` reconciles exactly.
+
+Validation checks the arithmetic, not just field presence — so corrupt a copy by bumping one discard count
+and it must fail, even though every required field is still there.
 
 Trace one record back using only its own fields:
 
@@ -121,6 +130,7 @@ head -1 data/release/smoke.jsonl | uv run python -c "
 import json,sys
 r=json.load(sys.stdin)
 print(r['run_id'], r['record_index'], r['source_id'], r['schema_version'])
+print('manifest:', f\"data/release/{r['run_id']}.manifest.json\")
 "
 ```
 
@@ -142,7 +152,8 @@ requests 500 records, comfortably above the 50-record floor the 2pp default requ
 ```bash
 uv run python -c "
 import json
-m=json.load(open('data/release/billing-heavy.manifest.json'))
+import glob
+m=json.load(open(glob.glob('data/release/*.manifest.json')[0]))
 for dim in m['composition_requested']:
     req = m['composition_requested'][dim]
     asg = m['composition_assigned'][dim]

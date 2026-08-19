@@ -259,7 +259,8 @@ storing raw values behind an ignore-file convention (creates the PII store descr
 
 **Decision**: Record the git commit SHA from `git rev-parse HEAD` **plus an explicit dirty-tree flag** from
 `git status --porcelain`; hash every input file with `sha256` over its contents. When the tree is dirty or
-the repository is unavailable, record that fact rather than omitting the field.
+the repository is unavailable, record that fact rather than omitting the field. This is now required rather
+than merely chosen: FR-025a promotes it, so a future revision cannot drop it silently.
 
 **Rationale**: Principle II requires runs to be replayable or auditable. A SHA recorded from a dirty tree
 silently misrepresents what produced the artifact; the flag makes the condition reviewable. Refusing to

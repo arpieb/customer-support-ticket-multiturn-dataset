@@ -152,7 +152,8 @@ problems: list[str] = validate_manifest(manifest_dict)   # empty when valid
 
 `validate_manifest` checks contract conformance **and** the reconciliation rule
 `records_generated - sum(discards) == records_written`, naming any missing element or discrepancy (FR-026,
-FR-028). `records_generated` counts every generator response, once per attempt (FR-026a) — the same
+FR-028). Both checks are required: a manifest whose fields are all present but whose accounting does not
+balance is invalid, and presence checking alone would pass exactly the manifests worth catching. `records_generated` counts every generator response, once per attempt (FR-026a) — the same
 denominator every discard-rate threshold divides by, so a threshold cannot be computed two ways.
 
 `RunReport` is the single object from which the JSON output, the human rendering, and the CLI exit status
