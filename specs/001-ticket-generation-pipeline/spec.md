@@ -327,8 +327,25 @@ stated tolerance.
 
 - **FR-016**: Every run MUST scan its own generated output for content matching known categories of real
   personal identifier before that output reaches the release path.
+- **FR-016a**: The scan MUST run on **every structurally valid model response, before that response is
+  judged for coherence**. Scanning is offline and cheap next to a model call, so scanning early costs almost
+  nothing and buys two things: PII emission is measured across all usable output rather than only the part
+  that survived the coherence gate — the measurement matters most exactly when the generator is worst — and
+  no judging call is spent on a record that is about to be discarded for a privacy finding.
 - **FR-017**: Detection MUST be performed by one or more registered detectors behind a common interface, so
   a detector can be added or replaced without changing the record definition or the pipeline.
+- **FR-017a**: A detector that fails while examining a record MUST cause that record to be treated as
+  flagged and discarded — failing closed, under a discard reason distinct from an actual finding, so a
+  detector malfunction is never mistaken for either a clean result or a real identifier. Repeated detector
+  failures MUST stop the run rather than let it continue producing output nothing can vouch for.
+- **FR-018a**: Floor coverage MUST be established by **demonstration, not declaration**: at run start, each
+  floor type is probed with committed synthetic canary values, and the run proceeds only if every floor type
+  is actually detected. A detector that declares a category it no longer detects — an upstream regression, a
+  misconfiguration — passes a declaration check and fails a probe, and it is precisely that case the floor
+  exists to catch.
+- **FR-018b**: A category MAY be registered as **advisory**: reported for visibility but never blocking.
+  Every report MUST state each category's blocking status, so an advisory finding is never read as a gate
+  that passed and a blocking category is never assumed to be advisory.
 - **FR-018**: The scan MUST detect at minimum: email addresses, phone numbers, payment card numbers, and
   **US Social Security numbers**. A detector set that cannot cover this floor MUST fail the run before
   generation rather than producing unvouched output. The floor is stated at the level of the identifier
@@ -365,10 +382,28 @@ stated tolerance.
   reason; approved exceptions MUST remain visible in the run report and MUST NOT store the matched value.
   A reviewer MUST be able to reach that decision from the masked rendering (FR-020a) or from the quarantine
   artifact (FR-021b), and MUST NOT be required to have observed the original run.
+- **FR-022a**: An approved exception MUST record **who approved it and when**. Approval by the person who
+  ran the generator is permitted — requiring a second person would make the mechanism unusable on a
+  single-maintainer project, and an unusable control is not a control — but every active exception MUST be
+  listed in the datasheet of any release that relies on it, so approvals meet a reviewer at the moment that
+  matters rather than on a timer. Approvals do not expire.
+- **FR-022b**: The stated reason for an exception MUST NOT contain the matched value or any other personal
+  identifier. Recording an exception MUST run the registered detectors over the reason text and refuse a
+  reason that trips them — otherwise the free-text field defeats the fingerprinting that keeps values out of
+  the repository in the first place.
 - **FR-023**: The scan MUST report how many records and fields it examined and which detectors ran, so a
   clean result is distinguishable from a scan that examined nothing.
-- **FR-024**: Every detector MUST operate without contacting a network service, so the gate is runnable
-  offline and yields identical findings for identical input.
+- **FR-023a**: The scanned fields are the record's **model-derived text**: every conversation turn's content
+  and the elaborated scenario. The report MUST state the field set it examined. Fields the pipeline assigns
+  — identifiers, enumerated metadata, timestamps, schema version — and the subdomain, which comes from the
+  committed prompt document, are **not** scanned: an identifier can only enter the corpus through model
+  output, and scanning pipeline-assigned values would produce findings on UUIDs and hashes that every run
+  would then have to except. The accepted consequence is that a prompt document containing a real identifier
+  is not caught by this gate; it is caught by review of a committed file.
+- **FR-024**: Every detector MUST operate without contacting a network service — for detection, and equally
+  for telemetry, analytics, or usage reporting — so the gate is runnable offline, yields identical findings
+  for identical input, and cannot transmit the content it examines. The pipeline MUST disable such reporting
+  explicitly rather than relying on a dependency's default staying unchanged.
 
 **Run manifest and provenance**
 
@@ -398,8 +433,8 @@ stated tolerance.
 - **FR-026b**: Discard reasons MUST come from a **closed, documented set**, so that the FR-026 reconciliation
   is auditable rather than a sum over free text. The permitted reasons are: **structurally invalid model
   response**, **turn count outside the configured range**, **record failed schema validation**, **coherence
-  below threshold**, **unjudgeable after retries**, **privacy finding**, **model refusal**, and **attempts
-  exhausted**. Adding a reason is an additive change to the manifest contract; using one outside the set is
+  below threshold**, **unjudgeable after retries**, **privacy finding**, **detector failure**, **model
+  refusal**, and **attempts exhausted**. Adding a reason is an additive change to the manifest contract; using one outside the set is
   invalid.
 - **FR-027**: The manifest MUST record non-deterministic inputs — including any generation model identity
   and parameters — so a run that cannot be replayed exactly can still be audited.

@@ -76,7 +76,9 @@ so a clean section is never read as broader coverage than the gate delivers.
 Flagged records are discarded under `privacy_finding` and appended to
 `data/interim/<run_id>/quarantine.jsonl`; the discard rate — `privacy_finding` discards divided by every
 generator response across all attempts (FR-026a) — exceeds the 0.5% threshold, so the run fails and
-**nothing is moved into `data/release/`**. The report names each finding by record ID, field, category,
+**nothing is moved into `data/release/`**. Because the scan runs before judging (FR-016a), flagged records
+never reach the judge, so a run that trips this threshold also costs noticeably fewer model calls than the
+record count suggests. The report names each finding by record ID, field, category,
 detector, and a masked rendering, never the matched value, and cites the quarantine path and count.
 
 ```bash
@@ -90,17 +92,26 @@ Then approve one finding and confirm it stops blocking while staying visible:
 uv run ticket-dataset privacy approve \
   --from-quarantine data/interim/<run_id>/quarantine.jsonl \
   --record-id <id> --field turns[3].content --category EMAIL \
-  --reason "synthetic domain, reviewed 2026-08-19"
+  --reason "synthetic domain, reviewed 2026-08-19" --by "$(git config user.email)"
 uv run ticket-dataset privacy scan data/interim/<run_id>/records.partial.jsonl
 ```
+
+The `--reason` text is itself scanned and refused if it trips a detector (FR-022b) — try
+`--reason "approving j.doe@example.com"` and confirm it is rejected rather than written.
 
 **Expect**: the finding appears as an approved exception rather than a blocker (FR-022), and
 `privacy/exceptions.json` contains a fingerprint — not the value. The masked rendering in the report
 (`…@example.com`) is usually enough to reach that judgment without opening quarantine at all; quarantine is
 the fallback for findings a mask cannot settle.
 
-**Detector floor.** Deregister a floor category in a test fixture and start a run: it must refuse with exit
-`2` **before** generating anything (FR-018).
+**Detector floor.** Coverage is demonstrated, not declared. Stub a detector so it still *declares* `US_SSN`
+but no longer matches it, and start a run: the canary probe must fail and the run must refuse with exit `2`
+**before** generating anything (FR-018, FR-018a). A declaration check would have passed this fixture, which
+is the whole point of probing.
+
+**Detector failure.** Make a detector raise on one record: that record must be discarded under
+`detector_error` — not `privacy_finding`, and not silently passed — and repeated failures must stop the run
+(FR-017a).
 
 ---
 

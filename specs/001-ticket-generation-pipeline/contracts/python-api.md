@@ -117,13 +117,21 @@ from ticket_dataset import (
 )
 ```
 
-`DetectorRegistry.assert_floor_covered()` raises `FloorNotCoveredError` when the registered detectors do
-not cover `EMAIL`, `PHONE`, `CREDIT_CARD`, `GOVERNMENT_ID`. It is called at run start, so an inadequate
-detector set fails **before** generation rather than after (FR-018).
+`DetectorRegistry.assert_floor_covered()` raises `FloorNotCoveredError` when the registered detectors fail
+to **detect** `EMAIL`, `PHONE`, `CREDIT_CARD`, or `US_SSN`. Coverage is established by probing each floor
+type with committed synthetic canaries, not by reading a detector's declared category list (FR-018a) — a
+detector whose pattern silently stopped matching still declares the category, and that is the case worth
+catching. Called at run start, so an inadequate detector set fails **before** generation (FR-018).
 
-`scan_record` returns findings carrying record ID, field, category, detector, and a masked rendering —
-never the matched value (FR-020, FR-020a) — and reports the fields it examined so a clean result is
-distinguishable from a scan that examined nothing (FR-023).
+A detector that raises while examining a record fails **closed**: the record is discarded under
+`detector_error`, distinct from `privacy_finding`, so a malfunction is never recorded as either a clean
+result or a real identifier (FR-017a). Repeated failures stop the run.
+
+`scan_record` examines the record's model-derived text — every turn's content and the elaborated scenario
+(FR-023a) — and returns findings carrying record ID, field, category, detector, blocking status, and a
+masked rendering, never the matched value (FR-020, FR-020a). It reports the fields it examined, so a clean
+result is distinguishable from a scan that examined nothing (FR-023). Pipeline-assigned fields and the
+subdomain are out of scope by requirement, not by omission.
 
 ```python
 mask(category: PIICategory, value: str) -> str
@@ -135,7 +143,10 @@ adjudicates from, so its behavior is a contract rather than a formatting detail.
 
 Records discarded for a privacy finding are appended to the run's quarantine artifact (FR-021b), whose path
 and count appear in the report. `ExceptionStore.approve_from_quarantine(path, record_id, field, category,
-reason)` fingerprints the value in place, so approving never requires the reviewer to handle it.
+reason, approved_by)` fingerprints the value in place, so approving never requires the reviewer to handle
+it. The store records the approver and date (FR-022a) and **runs the detectors over `reason`**, raising
+`ReasonContainsIdentifierError` rather than writing it — a free-text field that may hold a value would
+defeat the fingerprinting it sits beside (FR-022b).
 
 Adding a detector requires only registering an object satisfying `Detector`; the record contract, the
 finding format, and the gate are untouched (FR-017).

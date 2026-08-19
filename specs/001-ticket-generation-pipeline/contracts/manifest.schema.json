@@ -285,6 +285,7 @@
             "coherence_below_threshold",
             "unjudgeable",
             "privacy_finding",
+            "detector_error",
             "model_refusal",
             "attempts_exhausted"
           ],

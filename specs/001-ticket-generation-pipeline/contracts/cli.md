@@ -32,7 +32,7 @@ observable without polluting stdout.
 |------|---------|
 | `0` | Corpus written to the release path; every threshold satisfied |
 | `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance — each computed over `records_generated` per FR-026a) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
-| `2` | Refused before generating: invalid config, unsatisfiable composition, a tolerance unachievable at the requested corpus size, existing output path, detector floor not covered, or a resume whose inputs no longer match (FR-011, FR-018, FR-031b, FR-032, FR-015e) |
+| `2` | Refused before generating: invalid config, unsatisfiable composition, a tolerance unachievable at the requested corpus size, existing output path, a floor type that failed its canary probe, or a resume whose inputs no longer match (FR-011, FR-018, FR-018a, FR-031b, FR-032, FR-015e) |
 | `3` | Interrupted, **or a declared budget was exhausted** (FR-012f); progress checkpointed and resumable. Completed work is never lost to a ceiling |
 
 The distinction between `1` and `2` is the point: `2` means nothing was generated and nothing was spent;
@@ -81,10 +81,13 @@ Record a reviewed finding as an approved exception.
 | `--category` | enum | The PII category of the finding |
 | `--value` | str | The value, read from stdin or a prompt — **fingerprinted immediately and never written** (research R9) |
 | `--from-quarantine PATH --record-id ID --field F` | path/str | Alternative to `--value`: read the value straight out of the quarantine artifact, so the reviewer never has to retype or paste it (FR-021b) |
-| `--reason` | str | **Required.** The reviewer's stated justification (FR-022) |
+| `--reason` | str | **Required.** The reviewer's stated justification (FR-022). Scanned by the registered detectors and refused if it trips them (FR-022b) |
+| `--by` | str | **Required.** Who is approving. Self-approval is permitted and recorded rather than prohibited (FR-022a) |
 
-Appends `{fingerprint, category, reason, approved_on}` to the exception file. The file is committed; it
-never contains a raw value.
+Appends `{fingerprint, category, reason, approved_by, approved_on}` to the exception file. The file is
+committed; it never contains a raw value. Approvals do not expire — every active exception must instead be
+listed in the datasheet of any release that relies on it, so review happens at the moment that matters
+rather than on a timer (FR-022a).
 
 **Where the reviewer's judgment comes from**: the masked rendering in the report settles the common cases
 (a synthetic domain, a 555 number, a test card range). When it does not, the quarantined record is the

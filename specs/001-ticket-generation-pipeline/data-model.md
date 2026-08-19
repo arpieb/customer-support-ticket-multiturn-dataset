@@ -25,8 +25,8 @@ Three families live here and should not be confused:
 | `Priority` | `low`, `normal`, `high`, `urgent` | FR-006 |
 | `Channel` | `email`, `chat`, `phone`, `web_form` | FR-006 |
 | `ResolutionStatus` | `resolved`, `unresolved`, `escalated`, `abandoned` | FR-006 |
-| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory: `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor stated at identifier-type level; R8 |
-| `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `model_refusal`, `attempts_exhausted` | **FR-026b** enumerates this closed set normatively; each member maps to exactly one requirement |
+| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory (reported, never blocking): `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor at identifier-type level; the advisory tier and per-category blocking status are required by FR-018b; R8 |
+| `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `detector_error`, `model_refusal`, `attempts_exhausted` | **FR-026b** enumerates this closed set normatively; each member maps to exactly one requirement. `detector_error` is deliberately distinct from `privacy_finding`: a malfunctioning detector is neither a clean result nor a real identifier (FR-017a) |
 | `Verdict` | `pass`, `fail` | FR-036 |
 
 `Role`, `Category`, `Priority`, `Channel`, and `ResolutionStatus` are **closed sets** — any other value is a
@@ -260,7 +260,7 @@ Persisted at `data/interim/<run_id>/checkpoint.json` (research R6).
 | Entity | Fields | Rules |
 |--------|--------|-------|
 | `PrivacyFinding` | `record_id`, `field`, `category`, `detector`, `status`, `masked` | **Never** carries the matched value (FR-020). `masked` is a deterministic, irreversible rendering that preserves at most the non-identifying remainder — domain for an email, issuer range for a card, shape and length otherwise (FR-020a) |
-| `ApprovedException` | `fingerprint`, `category`, `reason`, `approved_on` | `sha256(category + ":" + normalized_value)`; committed at `privacy/exceptions.json`; never the raw value (FR-022, research R9) |
+| `ApprovedException` | `fingerprint`, `category`, `reason`, `approved_by`, `approved_on` | `sha256(category + ":" + normalized_value)`; committed at `privacy/exceptions.json`; never the raw value (FR-022, research R9). Self-approval is permitted and recorded; approvals do not expire but every active one must appear in a release datasheet (FR-022a). The `reason` is itself scanned and refused if it trips a detector (FR-022b) |
 
 ### Quarantine
 
@@ -288,7 +288,7 @@ three cannot disagree (FR-035, FR-036).
 | `run_id`, `schema_version` | `str` | Ties the report to the run and the contract |
 | `records_generated` / `records_written` | `int` | (FR-035) |
 | `discards` | `list[DiscardAccount]` | By reason (FR-035) |
-| `privacy` | `PrivacyReport` | Findings with masked renderings, `detectors_run`, `declared_gaps`, `records_examined`, `fields_examined`, approved exceptions, and the quarantine path and count (FR-019, FR-020, FR-020a, FR-021b, FR-023) |
+| `privacy` | `PrivacyReport` | Findings with masked renderings; `detectors_run`; `covered_types` and `declared_gaps`, each at identifier-type level; per-category blocking status; `records_examined`; `fields_examined` (turn content and scenario — FR-023a); canary probe results; approved exceptions; and the quarantine path and count (FR-018a, FR-018b, FR-019, FR-020, FR-020a, FR-021b, FR-023, FR-023a) |
 | `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three (FR-031a) |
 | `composition_breaches` | `list[Breach]` | Dimension, member, requested, achieved, and drift for every member exceeding the tolerance — a failure names the member, not just the dimension (FR-031) |
 | `coherence_score_distribution` | `Histogram` | (SC-009) |
@@ -335,23 +335,28 @@ A response that cannot be parsed or validated after the configured retries is a 
 ### Slot lifecycle
 
 ```text
-assigned ──generate──> generated ──structural──> structured ──judge──> scored
-                          │                          │                    │
-                          │ refusal/unparseable      │ shape violation    │ below threshold / unjudgeable
-                          ▼                          ▼                    ▼
+assigned ──generate──> generated ──structural──> structured ──privacy scan──> clean
+                          │                          │                │
+                          │ refusal/unparseable      │ shape violation│ finding / detector failure
+                          ▼                          ▼                ▼
                        retry (attempt+1) ─── exhausted ──> discarded(reason)
-                                                                          │
-   scored ──schema validate──> valid ──privacy scan──> clean ──> written  │
-              │                            │                              │
-              │ schema_invalid             │ finding                      │
-              ▼                            ▼                              ▼
-          discarded(schema_invalid)   discarded(privacy_finding)   accounted in manifest
-                                           │
-                                           └──> quarantine.jsonl (FR-021b)
+                                                                      │
+                                            privacy_finding ──> quarantine.jsonl (FR-021b)
+
+   clean ──judge──> scored ──schema validate──> valid ──> written
+            │                    │
+            │ below threshold    │ schema_invalid
+            │ / unjudgeable      ▼
+            ▼              discarded(schema_invalid) ──> accounted in manifest
+      discarded(reason)
 ```
 
-Order is load-bearing: the privacy scan is the **last** gate before a record is written, so nothing reaches
-the staging file — let alone the release path — carrying an unreviewed finding (FR-016, FR-021).
+Order is load-bearing, and the scan sits **early** rather than last (FR-016a): it runs on every structurally
+valid response, before the judge call. Nothing reaches the staging file — let alone the release path —
+carrying an unreviewed finding (FR-016, FR-021), and two things improve by scanning before judging. PII
+emission is measured across all usable output instead of only the part that survived the coherence gate,
+which matters most exactly when the generator is worst; and no judging call is spent on a record about to be
+discarded for privacy.
 
 ### Run lifecycle
 
