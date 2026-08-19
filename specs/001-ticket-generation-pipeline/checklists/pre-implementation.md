@@ -75,12 +75,18 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
 
 ## Composition Control Requirements
 
-- [ ] CHK040 FR-031's ±2 percentage point tolerance is stated "per controlled dimension". Is it per **member** of a dimension or an aggregate over the dimension? The two readings can pass and fail the same corpus. [Ambiguity, Measurability, Spec §FR-031]
-- [ ] CHK041 FR-030 treats the four dimensions independently. Are **cross-dimension** constraints required — combinations that should not co-occur, or joint distributions the operator can express — or is independence an accepted simplification? [Gap, Spec §FR-030]
-- [ ] CHK042 FR-033 requires "a documented default distribution", but the spec never states its values; they exist only in [data-model.md](../data-model.md). Is the default itself a requirement, or an implementation choice that may change without a spec change? [Traceability, Design-only, Spec §FR-033]
-- [ ] CHK043 The Assumptions concede that ±2pp "may be unreachable on very small corpora". Is a requirement defined for that case — refuse, warn, or silently exceed the tolerance and fail the run? [Gap, Spec §FR-031, §Assumptions]
-- [ ] CHK044 FR-032 requires refusing an unsatisfiable request. Are the conditions that make a request unsatisfiable **enumerated** (proportions that do not sum, unknown members, a corpus too small to round), or left to the implementer to discover? [Clarity, Spec §FR-032]
-- [ ] CHK045 When discards perturb the achieved composition past tolerance, is it specified whether the run fails for *composition* or for the underlying discard cause — and can an operator tell the two apart from the report? [Consistency, Spec §FR-031, §FR-009k, §FR-021a]
+- [x] CHK040 FR-031's ±2 percentage point tolerance is stated "per controlled dimension". Is it per **member** of a dimension or an aggregate over the dimension? The two readings can pass and fail the same corpus. [Ambiguity, Measurability, Spec §FR-031]
+  - **Resolved 2026-08-19** — FR-031 now states the tolerance is evaluated **per member of each dimension**: every member's achieved proportion must sit within the tolerance of its request, a dimension passes only when its worst member passes, and a failure names the offending member and its drift rather than the dimension. Aggregate measures were rejected in the requirement itself, with the reason recorded: someone slicing the corpus by one category cares about that category, and an average lets a badly-served member hide behind well-served ones. SC-008 was reworded to match.
+- [x] CHK041 FR-030 treats the four dimensions independently. Are **cross-dimension** constraints required — combinations that should not co-occur, or joint distributions the operator can express — or is independence an accepted simplification? [Gap, Spec §FR-030]
+  - **Resolved 2026-08-19** — independence is now stated rather than implied. A new assumption records that the four dimensions are apportioned separately, that any combination may therefore occur, and that an implausible pairing is the generating model's problem to render coherently and the coherence judge's to catch — not a composition concern. The tradeoff is explicit: four simple distributions instead of a 384-cell cross-product, at the cost of not being able to forbid a specific pairing.
+- [x] CHK042 FR-033 requires "a documented default distribution", but the spec never states its values; they exist only in [data-model.md](../data-model.md). Is the default itself a requirement, or an implementation choice that may change without a spec change? [Traceability, Design-only, Spec §FR-033]
+  - **Resolved 2026-08-19** — the default distribution and the 4–12 turn range are now stated **in FR-033 itself**, as a table, with the requirement noting they are requirements rather than implementation choices: changing them changes the corpus every unconfigured run produces. `data-model.md` now restates them and says the spec is normative.
+- [x] CHK043 The Assumptions concede that ±2pp "may be unreachable on very small corpora". Is a requirement defined for that case — refuse, warn, or silently exceed the tolerance and fail the run? [Gap, Spec §FR-031, §Assumptions]
+  - **Resolved 2026-08-19** — **FR-031b** (new) makes achievability a precondition. Assigning whole records bounds per-member error at `1 / record_count` before any discard, so a tolerance below that is unsatisfiable by arithmetic; the run refuses before generating and states both the minimum corpus size and the minimum tolerance that would work. The requirement is explicit that this is a necessary condition, not a sufficient one — meeting it does not guarantee the tolerance survives discards. The Assumptions were rewritten accordingly, and `configs/smoke.toml` now declares a 10pp tolerance because 20 records cannot achieve 2pp.
+- [x] CHK044 FR-032 requires refusing an unsatisfiable request. Are the conditions that make a request unsatisfiable **enumerated** (proportions that do not sum, unknown members, a corpus too small to round), or left to the implementer to discover? [Clarity, Spec §FR-032]
+  - **Resolved 2026-08-19** — FR-032 now enumerates the four conditions that make a request unsatisfiable: proportions that do not sum to 1 within a stated epsilon, a value that is not a member of the dimension's enumeration, a proportion too small to round to a whole record at the requested corpus size, and a tolerance unachievable at that size (FR-031b).
+- [x] CHK045 When discards perturb the achieved composition past tolerance, is it specified whether the run fails for *composition* or for the underlying discard cause — and can an operator tell the two apart from the report? [Consistency, Spec §FR-031, §FR-009k, §FR-021a]
+  - **Resolved 2026-08-19** — **FR-031a** (new) requires **three** distributions per dimension rather than two: requested, assigned, and achieved. Requested → assigned exposes apportionment error; assigned → achieved exposes drift caused by discards. Without the middle term a tolerance failure has no attributable cause, and the two causes call for entirely different responses. The manifest and report carry all three, plus a per-member breach list.
 
 ## Interruption, Resume & Output Path Requirements
 
@@ -122,10 +128,11 @@ spec alone would never learn it. Those items are marked `[Design-only]`.
   the requirements rather than by deciding how to implement around them. Each was two requirements
   disagreeing, so no amount of careful implementation would have resolved any of them; an implementer would
   simply have picked a side without noticing there was one.
-- **Resolved on 2026-08-19**: CHK001, CHK013, CHK018, CHK029, CHK031, CHK053, and CHK059 (as part of
-  CHK018). Spec amendments: FR-008 (credential carve-out), FR-008c, FR-008d, FR-012f, FR-018, FR-019,
+- **Resolved on 2026-08-19**: CHK001, CHK013, CHK018, CHK029, CHK031, CHK053, CHK059 (as part of CHK018),
+  and the whole composition cluster — CHK040 through CHK045. Spec amendments: FR-008 (credential carve-out), FR-008c, FR-008d, FR-012f, FR-018, FR-019,
   FR-020a, FR-021b, FR-022, FR-026a, SC-001, plus Assumptions and Edge Cases. `subdomain` was added to the
-  record contract. Every change is propagated through `research.md`, `plan.md`, `data-model.md`,
+  record contract, and FR-031, FR-031a, FR-031b, FR-032, FR-033, and SC-008 were rewritten for the
+  composition cluster. Every change is propagated through `research.md`, `plan.md`, `data-model.md`,
   `contracts/`, and `quickstart.md`.
 - `[Design-only]` items mark constraints that exist in `plan.md`, `data-model.md`, or `contracts/` but not
   in the spec. A design document is not a requirement: an implementer following the spec alone would never

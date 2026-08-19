@@ -23,6 +23,7 @@
     "resumed_count",
     "duplicate_count",
     "composition_requested",
+    "composition_assigned",
     "composition_achieved",
     "coherence_score_distribution",
     "output_sha256",
@@ -154,6 +155,10 @@
     },
     "composition_requested": {
       "$ref": "#/$defs/Composition"
+    },
+    "composition_assigned": {
+      "$ref": "#/$defs/Composition",
+      "description": "What apportionment assigned to slots before generation. Requested vs assigned is apportionment error; assigned vs achieved is discard-induced drift (FR-031a)."
     },
     "composition_achieved": {
       "$ref": "#/$defs/Composition"

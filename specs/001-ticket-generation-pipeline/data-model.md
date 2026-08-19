@@ -123,7 +123,7 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `coherence.threshold` | `float` | `0.8` | `0.0–1.0` (FR-009h) |
 | `coherence.max_discard_rate` | `float` | `0.10` | `coherence_below_threshold` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-009k) |
 | `privacy.max_discard_rate` | `float` | `0.005` | `privacy_finding` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-021a) |
-| `composition_tolerance_pp` | `float` | `2.0` | Percentage points per controlled dimension; exceeding it fails the run (FR-031) |
+| `composition_tolerance_pp` | `float` | `2.0` | Percentage points, evaluated **per member** of each dimension; the worst member decides (FR-031). Must be ≥ `100 / record_count`, or the run refuses before generating (FR-031b) |
 | `models.generator` / `models.judge` | `ModelSpec` | `claude-opus-5` | Model ID, effort, `max_tokens`; recorded in the manifest (FR-027) |
 | `max_concurrency` | `int` | `8` | ≥ 1 (FR-012a) |
 | `requests_per_minute` | `int` | `1000` | ≥ 1; the run's self-imposed bound (FR-012e) |
@@ -139,11 +139,18 @@ refuses the run before any model call, naming the specific problem.
 
 ### Composition
 
-Four independent distributions, one per controlled dimension. Each maps enum member → proportion; each must
-sum to `1.0` within a small epsilon, and may name only members of its enum (FR-030, FR-032). Apportionment
-to integer slot counts uses the largest-remainder method (research R3).
+Four **independent** distributions, one per controlled dimension. Each maps enum member → proportion; each
+must sum to `1.0` within a small epsilon, and may name only members of its enum (FR-030, FR-032).
+Apportionment to integer slot counts uses the largest-remainder method (research R3), which bounds
+per-member error below `1 / record_count` before any discard occurs — the basis for FR-031b's up-front
+refusal.
 
-**Documented default (FR-033)** — used when `composition` is absent:
+Dimensions are apportioned separately, so any combination of the four may occur and no joint distribution
+is expressible (spec Assumptions). An implausible pairing is the model's problem to render coherently and
+the judge's to catch, not a composition concern.
+
+**Documented default** — used when `composition` is absent. These values are **normative in the spec**
+(FR-033), not chosen here; this table restates them:
 
 | Dimension | Default distribution |
 |-----------|----------------------|
@@ -188,7 +195,7 @@ The record of how one run produced its output. Validatable; validation names any
 | `retry_counts` | `map[str, int]` | Transport retries by class — distinct from discards (FR-012d) |
 | `resumed_count` | `int` | How many times the run was resumed; `0` for an uninterrupted run (FR-015d) |
 | `duplicate_count` | `int` | Exact duplicate conversations produced (FR-034) |
-| `composition_requested` / `composition_achieved` | `Composition` | Both, always (FR-031) |
+| `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three, always (FR-031a). Requested → assigned is apportionment error; assigned → achieved is discard-induced drift. Without the middle term a tolerance failure has no attributable cause |
 | `coherence_score_distribution` | `Histogram` | Bucketed score counts across the corpus (SC-009) |
 | `output_sha256` | `str` | Checksum of the artifact, so the manifest binds to a specific file |
 
@@ -277,7 +284,8 @@ three cannot disagree (FR-035, FR-036).
 | `records_generated` / `records_written` | `int` | (FR-035) |
 | `discards` | `list[DiscardAccount]` | By reason (FR-035) |
 | `privacy` | `PrivacyReport` | Findings with masked renderings, `detectors_run`, `declared_gaps`, `records_examined`, `fields_examined`, approved exceptions, and the quarantine path and count (FR-019, FR-020, FR-020a, FR-021b, FR-023) |
-| `composition_requested` / `composition_achieved` | `Composition` | Both (FR-031) |
+| `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three (FR-031a) |
+| `composition_breaches` | `list[Breach]` | Dimension, member, requested, achieved, and drift for every member exceeding the tolerance — a failure names the member, not just the dimension (FR-031) |
 | `coherence_score_distribution` | `Histogram` | (SC-009) |
 | `duplicate_count` | `int` | (FR-034) |
 | `retry_counts` | `map[str, int]` | (FR-012d) |

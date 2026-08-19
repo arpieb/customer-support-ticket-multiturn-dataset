@@ -145,7 +145,8 @@ src/ticket_dataset/
 │   ├── loader.py             # Total validation; ConfigError with all problems at once (FR-011)
 │   └── defaults.py           # Documented default distribution and turn range (FR-033)
 ├── planning/
-│   ├── apportion.py          # Largest-remainder composition apportionment (R3, FR-030–FR-032)
+│   ├── apportion.py          # Largest-remainder apportionment; achievability precondition (R3, FR-030–FR-032, FR-031b)
+│   ├── tolerance.py          # Per-member tolerance check returning breaches (FR-031)
 │   ├── slots.py              # Slot construction; assignment, turn count, scenario nonce
 │   └── seeding.py            # slot_random(seed, position, attempt) — counter-based derivation (R2)
 ├── model/
@@ -186,7 +187,7 @@ privacy/
 └── exceptions.json           # Approved-exception fingerprints — never raw values
 
 configs/
-├── smoke.toml                # ~20 records, for Scenario 1
+├── smoke.toml                # 20 records, tolerance widened to 10pp per FR-031b
 ├── medium.toml               # Interrupt/resume scenario
 └── release.toml              # 100,000 records — the release acceptance run
 

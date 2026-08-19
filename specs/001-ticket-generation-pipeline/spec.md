@@ -384,12 +384,37 @@ stated tolerance.
 - **FR-030**: The configuration MUST allow the operator to specify a desired distribution across ticket
   categories, priorities, channels, and resolution outcomes.
 - **FR-031**: The generator MUST honor a requested distribution within a configurable tolerance, defaulting
-  to **±2 percentage points** per controlled dimension, and MUST report the composition actually achieved
-  alongside the composition requested. Exceeding the tolerance MUST fail the run.
+  to **±2 percentage points**. The tolerance is evaluated **per member of each dimension**: for every member
+  of every controlled dimension, the absolute difference between its achieved proportion and its requested
+  proportion MUST NOT exceed the tolerance. A dimension passes only when its worst member passes, and a
+  failure MUST name the offending member and its drift, not merely the dimension. Aggregate measures are
+  deliberately not used: someone slicing the corpus by one category cares about that category's drift, and
+  an average would let a badly-served member hide behind well-served ones.
+- **FR-031a**: The run MUST report **three** distributions per dimension — the composition **requested**,
+  the composition **assigned** to slots before generation, and the composition **achieved** in the written
+  corpus. Requested versus assigned exposes apportionment error; assigned versus achieved exposes drift
+  caused by discards. Without the middle term an operator cannot tell which of the two caused a tolerance
+  failure, and the two call for entirely different responses.
+- **FR-031b**: A tolerance the corpus size cannot achieve MUST be refused before generating. Assigning whole
+  records to proportions bounds the per-member error at `1 / record_count` before any discard occurs, so a
+  tolerance below that is unsatisfiable by arithmetic alone. The refusal MUST state both the minimum corpus
+  size and the minimum tolerance that would work. This is a necessary condition, not a sufficient one:
+  meeting it does not guarantee the tolerance survives discards.
 - **FR-032**: The generator MUST refuse an unsatisfiable composition request and explain which part cannot
-  be satisfied.
-- **FR-033**: When no composition is specified, the generator MUST apply a documented default distribution,
-  including a documented default turn-count range.
+  be satisfied. A request is unsatisfiable when: its proportions for a dimension do not sum to 1 within a
+  stated epsilon; it names a value that is not a member of that dimension's enumeration; a requested
+  proportion is too small to round to a whole record at the requested corpus size; or the requested
+  tolerance is unachievable at that corpus size (FR-031b).
+- **FR-033**: When no composition is specified, the generator MUST apply the following default distribution
+  and the default turn-count range of **4 to 12** turns. These defaults are requirements, not implementation
+  choices: changing them changes the corpus every unconfigured run produces.
+
+  | Dimension | Default distribution |
+  |-----------|----------------------|
+  | Category | `billing` 0.25, `technical` 0.25, `account` 0.20, `shipping` 0.15, `product` 0.10, `other` 0.05 |
+  | Priority | `low` 0.20, `normal` 0.50, `high` 0.20, `urgent` 0.10 |
+  | Channel | `email` 0.40, `chat` 0.35, `phone` 0.15, `web_form` 0.10 |
+  | Resolution status | `resolved` 0.70, `unresolved` 0.10, `escalated` 0.15, `abandoned` 0.05 |
 - **FR-034**: The run report MUST state how many duplicate conversations were produced, so corpus diversity
   is visible.
 
@@ -462,8 +487,9 @@ stated tolerance.
   and inputs behind any corpus from its manifest alone, in under five minutes.
 - **SC-007**: Any single record can be traced to the run that produced it and the source it derives from,
   using only the record's own fields.
-- **SC-008**: A requested composition is achieved within ±2 percentage points across every controlled
-  dimension, and the achieved composition is reported for every run.
+- **SC-008**: A requested composition is achieved within ±2 percentage points for **every member of** every
+  controlled dimension, and the requested, assigned, and achieved compositions are all reported for every
+  run.
 - **SC-009**: Every record written to the release path carries a coherence score at or above the configured
   threshold, and the run reports the score distribution across the corpus so quality is visible rather than
   assumed.
@@ -496,8 +522,15 @@ stated tolerance.
   report to enumerate covered and uncovered types alike, so the gap is visible at the point of use.
 - **Composition tolerance is proportional**: Requested distributions are honored within a tolerance rather
   than exactly, because integer record counts cannot hit arbitrary proportions precisely. The ±2 percentage
-  point default is comfortably achievable at release scale but may be unreachable on very small corpora,
-  where the operator is expected to widen it deliberately.
+  point default is comfortably achievable at release scale and is arithmetically impossible below 50
+  records, so a run that asks for both a small corpus and a tight tolerance is refused up front (FR-031b)
+  rather than allowed to spend its calls and fail at the end.
+- **The controlled dimensions are independent**: Category, priority, channel, and resolution status are
+  apportioned separately, so any combination of the four may occur and no joint distribution is expressible.
+  A combination that reads as implausible is the generating model's problem to render coherently and the
+  coherence judge's to catch — it is not a composition concern. This keeps the configuration a set of four
+  simple distributions rather than a 384-cell cross-product, at the cost of not being able to forbid a
+  specific pairing.
 - **Thresholds are defaults, not constants**: The four documented thresholds — composition ±2pp, privacy
   discard 0.5%, coherence discard 10%, coherence score 0.8 — are starting values chosen to make the
   requirements testable from the first run. They are configurable, and the coherence values in particular

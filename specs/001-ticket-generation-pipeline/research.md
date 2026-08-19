@@ -85,8 +85,11 @@ metadata. A discarded slot is **refilled by retrying the same slot** with its as
 
 **Rationale**: This makes composition correct by construction rather than by measurement and correction.
 Largest-remainder is the standard apportionment method for turning proportions into integer counts and
-bounds per-dimension error at one record — far inside the ±2 percentage point tolerance of FR-031 for any
-corpus of meaningful size. The only thing that can perturb achieved composition is discards, and retrying
+bounds **per-member** error below one record — that is, below `1 / record_count` in proportion terms, far
+inside the ±2 percentage point tolerance of FR-031 for any corpus of meaningful size, and the arithmetic
+basis for FR-031b's refusal when a corpus is too small for the tolerance it asks for. The tolerance is
+checked per member rather than in aggregate (FR-031), so a badly-served category cannot hide behind
+well-served ones. The only thing that can perturb achieved composition is discards, and retrying
 the *same slot* rather than appending a fresh one keeps the pools intact, so a discard costs calls and time
 but not shape. The tolerance in FR-031 then covers the residue: slots that exhaust their attempts.
 

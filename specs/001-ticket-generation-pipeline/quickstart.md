@@ -39,7 +39,10 @@ guarantee (research R7).
 uv run ticket-dataset generate --config configs/smoke.toml --seed 42
 ```
 
-`configs/smoke.toml` requests ~20 records, so the scenario costs about 40 model calls.
+`configs/smoke.toml` requests 20 records, so the scenario costs about 40 model calls. It also declares
+`composition_tolerance_pp = 10.0`: at 20 records, per-member apportionment error is bounded only by
+`100/20 = 5pp`, so the 2pp default is arithmetically unachievable and a run would be refused before
+generating (FR-031b). Widening it deliberately is exactly what that requirement asks of an operator.
 
 **Expect**: exit `0`; `data/release/smoke.jsonl` with exactly the requested number of lines; a manifest and
 report beside it. Every record validates against the record contract, its turns alternate `customer` /
@@ -132,25 +135,35 @@ name the missing or inconsistent element (FR-028).
 uv run ticket-dataset generate --config configs/billing-heavy.toml --seed 3
 ```
 
-**Expect**: achieved composition within ±2 percentage points of the request on every controlled dimension,
-with both the requested and achieved distributions in the report.
+**Expect**: every **member** of every controlled dimension within ±2 percentage points of its request, with
+all three distributions — requested, assigned, achieved — in the report. `configs/billing-heavy.toml`
+requests 500 records, comfortably above the 50-record floor the 2pp default requires.
 
 ```bash
 uv run python -c "
 import json
 m=json.load(open('data/release/billing-heavy.manifest.json'))
 for dim in m['composition_requested']:
-    req, got = m['composition_requested'][dim], m['composition_achieved'][dim]
-    worst = max(abs(req.get(k,0)-got.get(k,0)) for k in set(req)|set(got))
-    print(f'{dim}: worst drift {worst*100:.2f}pp')
+    req = m['composition_requested'][dim]
+    asg = m['composition_assigned'][dim]
+    got = m['composition_achieved'][dim]
+    members = set(req) | set(asg) | set(got)
+    worst_member = max(members, key=lambda k: abs(req.get(k,0)-got.get(k,0)))
+    drift = abs(req.get(worst_member,0)-got.get(worst_member,0)) * 100
+    appor = abs(req.get(worst_member,0)-asg.get(worst_member,0)) * 100
+    print(f'{dim}: worst member {worst_member} drift {drift:.2f}pp '
+          f'(apportionment {appor:.2f}pp, rest is discards)')
 "
 ```
 
-An unsatisfiable request must refuse with exit `2` and name the offending dimension:
+An unsatisfiable request must refuse with exit `2` and name the offending part — before any model call:
 
 ```bash
-uv run ticket-dataset generate --config configs/bad-composition.toml --seed 1   # proportions sum to 1.4
+uv run ticket-dataset generate --config configs/bad-composition.toml --seed 1  # proportions sum to 1.4
+uv run ticket-dataset generate --config configs/tight-tolerance.toml --seed 1  # 20 records at 2pp
 ```
+
+The second must name both remedies: at least 50 records, or a tolerance of at least 5pp (FR-031b).
 
 ---
 

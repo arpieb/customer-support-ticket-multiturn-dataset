@@ -43,11 +43,19 @@ should see all of them at once.
 
 ```python
 composition.apportion(record_count: int) -> list[TicketMetadata]
+composition.check(achieved: Composition, tolerance_pp: float) -> list[Breach]
 ```
 
 Largest-remainder apportionment across slots (research R3). Raises `UnsatisfiableCompositionError` naming
-the dimension and the reason when proportions do not sum, name an unknown member, or cannot round to whole
-records at the requested corpus size (FR-032).
+the dimension and the reason when proportions do not sum, name an unknown member, cannot round to whole
+records at the requested corpus size, or when the requested tolerance is below `100 / record_count` and is
+therefore unachievable by arithmetic alone (FR-032, FR-031b) — the error states both the minimum corpus size
+and the minimum tolerance that would work.
+
+`check` returns one `Breach` per **member** exceeding the tolerance, carrying dimension, member, requested,
+achieved, and drift. An empty list is the pass condition. Per-member rather than aggregate, because someone
+slicing the corpus by one category cares about that category's drift and an average would let a badly-served
+member hide behind well-served ones (FR-031).
 
 ---
 
