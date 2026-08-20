@@ -170,8 +170,9 @@ src/ticket_dataset/
 │   └── exceptions_store.py   # Fingerprint-based approved exceptions (FR-022, R9)
 ├── run/
 │   ├── run.py                # GenerationRun.execute() / .resume() — orchestration
-│   ├── writer.py             # Ordered streaming writer, staging -> atomic release move (R5)
-│   ├── checkpoint.py         # Checkpoint write/read, truncation resume, fingerprint match (R6)
+│   ├── writer.py             # Ordered streaming writer, destination claim, staging -> atomic release move (R5, FR-014a)
+│   ├── checkpoint.py         # Checkpoint write/read, truncation resume, fingerprint match, candidate discovery (R6, FR-015h)
+│   ├── retention.py          # Drops staging and checkpoint on success; keeps report and quarantine (FR-015i)
 │   ├── manifest.py           # RunManifest build, `<run_id>.manifest.json` naming, reconciliation validation (FR-026, FR-028, FR-029a)
 │   ├── ids.py                # Fresh run_id per run; UUIDv5 record IDs from (run_id, position) (FR-003a, FR-003b)
 │   ├── revision.py           # Git SHA + dirty flag, input hashing, environment overrides (R10, FR-008c)

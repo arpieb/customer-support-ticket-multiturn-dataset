@@ -196,14 +196,19 @@ uv run ticket-dataset generate --config configs/medium.toml --seed 11 &
 sleep 30 && kill -INT %1
 ```
 
-**Expect**: exit `3`; `data/release/` untouched; a checkpoint under `data/interim/<run_id>/`.
+**Expect**: exit `3`; `data/release/` untouched — incomplete output never occupies the release path at all
+(FR-015), so there is nothing there to mistake for a finished corpus; a checkpoint and staging file under
+`data/interim/<run_id>/`, both retained because the run did not succeed (FR-015i).
 
 ```bash
 uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume
 ```
 
-**Expect**: exit `0`, with no record regenerated and no `record_id` duplicated. The manifest describes the
-whole corpus as one run, reconciles across both segments, and reports `resumed_count: 1`.
+**Expect**: exit `0`, with no record regenerated and no `record_id` duplicated. The resume found its
+candidate by matching input fingerprints — no run identifier needed, because only one checkpointed run
+matches (FR-015h). The manifest describes the whole corpus as one run, reconciles across both segments,
+reports `resumed_count: 1`, and carries one `segments` entry per attempt with the code revision each
+produced (FR-015f). On success the staging file and checkpoint are gone; the report remains (FR-015i).
 
 ```bash
 uv run python -c "
@@ -217,7 +222,23 @@ print('resume clean:', len(ids), 'records')
 ```
 
 Now resume with a changed input — edit `prompts/domain.md` and retry: it must refuse with exit `2` rather
-than producing a mixed-provenance corpus (FR-015e).
+than producing a mixed-provenance corpus (FR-015e). Then check the deliberate exception: commit a code
+change and resume. That must **succeed**, adding a second `segments` entry with the new revision (FR-015f) —
+the corpus is described rather than blocked, the same trade FR-025a makes for a modified working tree.
+
+Two more failure paths:
+
+```bash
+printf 'garbage' > data/interim/<run_id>/checkpoint.json
+uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume   # exit 2, staging preserved
+
+uv run ticket-dataset generate --config configs/medium.toml --seed 11 &          # claims the output path
+uv run ticket-dataset generate --config configs/medium.toml --seed 11            # exit 2, path claimed
+```
+
+An unreadable checkpoint refuses and leaves the partial output alone — restarting is the operator's explicit
+act, never the tool's inference (FR-015g). A destination another run has claimed refuses immediately rather
+than at the end, after both runs have paid for their calls (FR-014a).
 
 ---
 

@@ -150,9 +150,11 @@ minimal structure that provides it while still writing incrementally (FR-012). B
 `max_concurrency` slots are in flight, the buffer holds at most that many records regardless of N —
 satisfying FR-012's memory requirement at 100k without buffering the corpus.
 
-Two-phase staging is what makes FR-014 and FR-015 true rather than aspirational: an interrupted run leaves
-its partial file in `data/interim/`, which is not the release path, so nothing in `data/release/` can ever
-be mistaken for a complete artifact. The atomic rename is the moment an artifact exists. The constitution's
+Two-phase staging is what makes FR-014 and FR-015 true rather than aspirational, and FR-015 now requires the
+location rule rather than merely permitting it: an interrupted run leaves its partial file in
+`data/interim/`, which is not the release path, so nothing in `data/release/` can ever be mistaken for a
+complete artifact. Distinguishing by location cannot be defeated by a partial write or a naming mistake, as
+a suffix convention can. The atomic rename is the moment an artifact exists. The constitution's
 directory separation (`data/raw/`, `data/interim/`, `data/release/`) is doing real work here rather than
 being a naming convention. The pre-flight check refuses to start when the destination path already exists.
 
@@ -184,8 +186,12 @@ and continue, with no scanning, no partial-line parsing, and no possibility of a
 resumption cannot reissue an identifier even if a slot is regenerated. Comparing the input fingerprint set
 before resuming implements FR-015e: a changed config, seed, prompt document, or rubric makes the checkpoint
 inapplicable, and resuming is refused rather than producing a corpus the manifest cannot honestly describe.
-The `resumes` counter satisfies FR-015d, and carrying the tallies in the checkpoint is what lets FR-015c's
-single reconciled manifest survive an interruption.
+The same fingerprints identify *which* run to resume when the operator names none (FR-015h). The **code
+revision is deliberately excluded** from that set: a changed revision is recorded as an additional manifest
+segment rather than refused (FR-015f), because discarding hours of a release-scale run over an edit made
+while it was interrupted trades away far more than it protects. The `resumes` counter satisfies FR-015d, and
+carrying the tallies in the checkpoint is what lets FR-015c's single reconciled manifest survive an
+interruption.
 
 **Alternatives considered**:
 - *Reconstruct state by re-reading the staging file on resume*: no sidecar to keep consistent, but discard

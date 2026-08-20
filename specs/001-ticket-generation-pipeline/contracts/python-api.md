@@ -78,9 +78,16 @@ result: RunResult = await run.execute()          # or run.resume()
 5. checkpoints periodically (FR-015a);
 6. writes the manifest and report, and moves the artifact into the release path **only** on success.
 
-`resume()` reads the checkpoint, refuses when the input fingerprints differ (FR-015e), truncates the
-staging file to its recorded length, and continues — without regenerating written records or reissuing a
-record ID (FR-015b).
+`resume()` reads the checkpoint, refuses when the input fingerprints differ (FR-015e), truncates the staging
+file to its recorded length, and continues — without regenerating written records or reissuing a record ID.
+An identifier counts as issued only once a record carrying it has been **written**, so re-deriving the
+identifier of a position whose attempts were all discarded is not reuse (FR-015b).
+
+A **changed code revision does not refuse** the resume: the manifest gains a segment recording that
+revision and the record range it produced (FR-015f). An unreadable checkpoint raises
+`CheckpointCorruptError` and leaves the partial output in place (FR-015g). `find_resumable(config, seed)`
+returns candidate runs by input fingerprint and raises `AmbiguousResumeError` naming them when more than one
+matches (FR-015h).
 
 **Seeded choice derivation** is public because SC-013 must be testable directly:
 
@@ -180,7 +187,8 @@ to test for.
 | `ConfigError` | Configuration is invalid or internally contradictory (FR-011) |
 | `UnsatisfiableCompositionError` | A composition request cannot be satisfied (FR-032) |
 | `FloorNotCoveredError` | Registered detectors do not cover the blocking floor (FR-018) |
-| `OutputPathExistsError` | The destination artifact already exists (FR-014) |
+| `OutputPathExistsError` | The destination artifact already exists, or another run claimed it while this one was generating (FR-014, FR-014a). There is no overwrite option to catch |
+| `AmbiguousResumeError` | More than one checkpointed run matches the inputs; the error names the candidates (FR-015h) |
 | `CheckpointMismatchError` | Resume attempted with changed config, seed, prompt document, or rubric (FR-015e) |
 | `CheckpointCorruptError` | The checkpoint is unreadable; the operator must restart deliberately (spec Edge Cases) |
 | `UnobservableEnvironmentError` | An environment setting could alter model routing but cannot be observed and recorded, so the run refuses rather than proceed unrecorded (FR-008c) |

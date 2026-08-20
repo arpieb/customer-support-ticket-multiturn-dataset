@@ -307,14 +307,28 @@ stated tolerance.
   An unattended run at release scale otherwise has no ceiling on time or cost.
 - **FR-013**: The generator MUST write output as JSON Lines beneath the project's data directory, placing
   release-path output in a location distinct from scratch and intermediate output.
-- **FR-014**: The generator MUST NOT silently overwrite or append to an existing artifact at its output path.
+- **FR-014**: The generator MUST NOT overwrite or append to an existing artifact at its output path. It MUST
+  refuse and name the conflicting path. **No option to overwrite exists**: the data directory is outside
+  version control, so an overwritten corpus and its manifest are unrecoverable, and removing a release
+  artifact is therefore a deliberate manual act rather than a flag that can find its way into a script that
+  runs unattended.
+- **FR-014a**: The generator MUST claim its destination path at run start and MUST re-verify the claim
+  immediately before the artifact is placed there. Checking only at the start leaves two concurrent runs
+  both passing the check and the second silently replacing the first's output at the end.
 - **FR-015**: An interrupted run MUST NOT leave output in the release path that is indistinguishable from a
-  completed run.
+  completed run. Incomplete output MUST NOT occupy the release path **at all**: it lives in intermediate
+  output until the run succeeds, and the artifact appears in the release path by a single indivisible
+  operation. Distinguishing complete from incomplete by location — which the constitution's separation of
+  directories already provides — cannot be defeated by a partial write, a crash, or a naming mistake, as a
+  suffix convention can.
 - **FR-015a**: A run MUST checkpoint its progress periodically — records written, discard tallies by reason,
   and the state needed to continue seeded choices — so that an interrupted run can resume rather than
   restart.
 - **FR-015b**: A resumed run MUST continue from its checkpoint without regenerating or duplicating records
-  already written, and MUST NOT reuse a record identifier already issued.
+  already written, and MUST NOT reuse a record identifier already issued. An identifier counts as **issued
+  when a record carrying it has been written**. Re-deriving the identifier of a position whose earlier
+  attempts were all discarded is therefore not reuse — no record ever bore it — which is what allows
+  FR-009c's retries and FR-003b's deterministic derivation to coexist with this requirement.
 - **FR-015c**: A resumed run MUST produce a single manifest describing the whole corpus, with counts and
   discard accounting reconciling across all segments, so provenance is not fragmented by an interruption.
 - **FR-015d**: The manifest MUST record that a run was resumed and how many times, since an interrupted run
@@ -322,6 +336,23 @@ stated tolerance.
 - **FR-015e**: Resuming MUST be refused when the configuration, seed, prompt document, or rubric differs
   from the checkpointed run, because continuing under changed inputs would produce a corpus the manifest
   cannot honestly describe.
+- **FR-015f**: A **changed code revision does not refuse a resume**. Instead, the manifest MUST record one
+  segment per run or resume, each carrying its own code revision and the range of records it produced, so a
+  corpus generated across more than one revision is described honestly rather than prevented. Refusing would
+  discard the completed part of a long run over an edit made while it was interrupted; recording keeps the
+  provenance intact and leaves the judgement to whoever decides to release. This is the same trade FR-025a
+  makes for a modified working tree.
+- **FR-015g**: A checkpoint that cannot be read MUST be reported as unusable and MUST refuse the resume; the
+  partial output MUST be preserved rather than discarded. Restarting from scratch MUST be an explicit
+  operator action, because the alternative is a tool that silently decides to throw away completed work at
+  the moment its own state became untrustworthy.
+- **FR-015h**: Resuming MUST identify which run it continues. When the operator does not name a run, the
+  candidate is found by matching input fingerprints; exactly one match resumes, several matches MUST refuse
+  and name the candidates, and none MUST refuse rather than start a new run under the guise of resuming.
+- **FR-015i**: On success, the staging copy and the checkpoint MUST be removed — the artifact in the release
+  path supersedes them — while the run report and any quarantine artifact MUST be retained, since the
+  quarantine is the input to FR-022's approval and cannot be reconstructed without regenerating the corpus.
+  A run that failed or was interrupted MUST retain everything, which is precisely when it is needed.
 
 **Privacy gate**
 

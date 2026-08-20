@@ -197,6 +197,7 @@ The record of how one run produced its output. Validatable; validation names any
 | `discards` | `list[DiscardAccount]` | Every discarded record by count and reason (FR-026) |
 | `retry_counts` | `map[str, int]` | Transport retries by class — distinct from discards (FR-012d) |
 | `resumed_count` | `int` | How many times the run was resumed; `0` for an uninterrupted run (FR-015d) |
+| `segments` | `list[Segment]` | One per run or resume: `code_revision`, `started_at`, `completed_at`, and the record range it produced (FR-015f). A changed revision does not refuse a resume; it is described instead |
 | `duplicate_count` | `int` | Exact duplicate conversations produced (FR-034) |
 | `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three, always (FR-031a). Requested → assigned is apportionment error; assigned → achieved is discard-induced drift. Without the middle term a tolerance failure has no attributable cause |
 | `coherence_score_distribution` | `Histogram` | Bucketed score counts across the corpus (SC-009) |
@@ -241,14 +242,17 @@ of deciding to release.
 
 ### Checkpoint
 
-Persisted at `data/interim/<run_id>/checkpoint.json` (research R6).
+Persisted at `data/interim/<run_id>/checkpoint.json` (research R6). Removed on success along with the
+staging file; retained in full when a run fails or is interrupted (FR-015i). An unreadable checkpoint
+refuses the resume and preserves the partial output — restarting is an explicit operator action, never an
+inference the tool makes on its own (FR-015g).
 
 | Field | Type | Rules |
 |-------|------|-------|
 | `run_id` | `str` | Matches the staging directory |
 | `next_position` | `int` | The first slot not yet written |
 | `bytes_written` | `int` | Staging file length at the last durable point; resume truncates to it |
-| `input_fingerprints` | `map[str, str]` | Config hash, seed, prompt document hash, rubric hash, schema version. A mismatch refuses the resume (FR-015e) |
+| `input_fingerprints` | `map[str, str]` | Config hash, seed, prompt document hash, rubric hash, schema version. A mismatch refuses the resume (FR-015e), and the same fingerprints are what `--resume` matches on to find its candidate run (FR-015h). The code revision is deliberately **not** among them (FR-015f) |
 | `discards` | `list[DiscardAccount]` | Tallies so far (FR-015c) |
 | `retry_counts` | `map[str, int]` | Retries so far |
 | `duplicate_count` | `int` | Duplicates so far |
@@ -273,6 +277,7 @@ Without it, FR-022's approval has no input: the record is gone and FR-020 withho
 | Contents | The full discarded record, plus the findings that flagged it |
 | Visibility | The run report names the quarantine path and its record count, so its existence is never implicit |
 | Status | Not dataset output. Nothing downstream may read it as a corpus |
+| Retention | Survives a successful run, unlike the staging file and checkpoint (FR-015i): it is the input to FR-022's approval and cannot be reconstructed without regenerating the corpus |
 
 A quarantined record is fabricated content that a pattern detector found identifier-shaped — not a real
 identifier — which is why retaining it is compatible with Principle IV (spec Assumptions).
