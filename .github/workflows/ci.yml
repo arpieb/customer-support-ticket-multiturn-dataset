@@ -1,0 +1,39 @@
+name: CI
+
+# The whole suite runs against FakeModelClient, so no job needs model credentials and
+# no job makes a network call. That is deliberate: the contract drift checks and the
+# offline-install guard are only worth having if they run on every push.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Pin Python to the requires-python floor
+        run: uv python install 3.14
+
+      - name: Install from the committed lockfile
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Tests
+        run: uv run pytest -q
+        env:
+          # Named explicitly so a credential leaking into CI is visible as a diff, not a default.
+          ANTHROPIC_API_KEY: ""
