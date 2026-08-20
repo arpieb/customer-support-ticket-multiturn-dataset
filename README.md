@@ -59,6 +59,11 @@ api_base = "http://ollama.internal:11434"    # without this, litellm assumes loc
   turn count with strictly alternating roles; a model that drifts will produce discards rather
   than bad records, and the run reports them by reason. If the coherence discard rate exceeds its
   threshold the run fails, which is the intended signal — not a bug to work around.
+- **Expect to raise `privacy.max_discard_rate`.** The 0.5% default assumes a model that follows
+  the prompt document almost always. A 20-record run against `gpt-oss:20b` complied 22 times out
+  of 25 and invented a realistic-looking domain three times — 12%, which fails the default. Raising
+  it weakens an alarm, not the gate: those records are still blocked and still quarantined. Read
+  `quarantine.jsonl` to see what tripped, and lower the threshold back as steering improves.
 
 Credentials are an **access mechanism**, not a generation input. They never influence output and
 are never written to a manifest, report, checkpoint, or log. Anything else in the environment that

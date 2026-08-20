@@ -61,6 +61,17 @@ because those ranges cannot belong to anyone:
 - **Payment card** — the published network test numbers, such as `4111 1111 1111 1111`.
 - **Order and account numbers** — invent freely: `ORD-4417`, `AC-99812`.
 
+**When a conversation needs two or more distinct addresses**, vary the *reserved* domain rather
+than inventing a realistic one. An address change, a forwarding request, a duplicate account —
+these need the old and the new to look different, and the temptation is to reach for something
+that reads like a real provider. Do not. Use `old.address@example.net` and
+`new.address@example.com`, or `@example.org` and `@mail.test`. The same applies to two phone
+numbers: keep both in the `555-0100`–`555-0199` range and vary the area code.
+
+A plausible-looking domain of your own invention is the single most common way these conversations
+go wrong. It is fabricated, but nothing can tell it apart from a real one, so it blocks the record
+and the work is wasted.
+
 Never write a Social Security number or other government identifier, even a made-up one. No range
 is reserved for fiction there, so any such value blocks the record and it cannot be exempted.
 

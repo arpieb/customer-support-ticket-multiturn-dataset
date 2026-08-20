@@ -486,6 +486,14 @@ stated tolerance.
   defective and filtering around it would mask the defect. The threshold defaults to **0.5%** of records
   generated, as defined in FR-026a — synthetic content should almost never trip the scanner, so a higher
   rate signals a real defect rather than noise.
+- **FR-021d**: The privacy discard rate measures **how often the generator produces identifier-shaped
+  content outside the reserved-for-fiction ranges** — not how often real personal data was produced, which
+  no offline detector can determine. Raising the threshold therefore weakens an *alarm*, not the gate: every
+  blocked record is still blocked, and nothing unscanned still reaches the release path. What a higher
+  threshold concedes is that the operator has accepted a generator whose instruction-following is
+  imperfect. The default of 0.5% assumes a model that follows the prompt document almost always; a smaller
+  or self-hosted model may not, and the configured value MUST be set deliberately rather than the default
+  treated as achievable everywhere.
 - **FR-022**: Reviewers MUST be able to record a reviewed finding as an approved exception with a stated
   reason; approved exceptions MUST remain visible in the run report and MUST NOT store the matched value.
   A reviewer MUST be able to reach that decision from the masked rendering (FR-020a) or from the quarantine

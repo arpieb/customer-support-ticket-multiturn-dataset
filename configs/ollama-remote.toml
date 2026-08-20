@@ -16,6 +16,17 @@ composition_tolerance_pp = 10.0
 max_concurrency = 2
 requests_per_minute = 120
 
+# The 0.5% default assumes a model that follows the prompt document almost always. A smaller model
+# does not: a 20-record run against gpt-oss:20b complied 22 times out of 25 and invented a
+# realistic-looking domain three times, which is 12% and fails the default outright.
+#
+# Raising this weakens an alarm, not the gate (FR-021d). Every one of those records is still
+# blocked and still quarantined; what a higher threshold concedes is that this model's
+# instruction-following is imperfect and you have accepted that. Lower it toward 0.5% as prompt
+# steering improves, and treat a sudden rise as the signal it is meant to be.
+[privacy]
+max_discard_rate = 0.05
+
 [turns]
 min = 4
 max = 8
