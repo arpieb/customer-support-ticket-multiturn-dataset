@@ -247,15 +247,21 @@ stated tolerance.
   corpus can be stratified — the prompt document alone is common to every record and cannot serve that
   purpose. The subdomain is reproducible from the seed; the elaborated scenario is model text and is not.
 - **FR-009**: The generator MUST produce coherent multi-turn exchanges in which turns are ordered, are
-  non-empty, alternate between participants, and concern a single support issue.
+  non-empty, alternate between participants, and concern a single support issue. **The customer speaks
+  first**: a support interaction begins with the party raising the issue, and leaving the opening role
+  unstated would let two conforming implementations produce corpora that differ on every record.
 - **FR-009a**: Conversation text MUST be produced by a language model prompted from the domain prompt
   document and the run configuration.
 - **FR-009d**: The configuration MUST accept a minimum and maximum turn count, and each conversation's
-  length MUST be sampled from that range as a seeded choice, so the length distribution is reproducible even
-  though the text is not.
+  length MUST be sampled **uniformly** from that range as a seeded choice, so the length distribution is
+  reproducible even though the text is not. Naming the distribution matters: "sampled from a range" alone
+  admits implementations that produce materially different corpora while both conforming. Uniform sampling
+  produces more long conversations than real support traffic contains, which is an accepted simplification —
+  the range means exactly what it says, and the resulting distribution is testable.
 - **FR-009e**: The generator MUST reject and account for any conversation whose turn count falls outside the
-  configured range, and MUST refuse to start when the range is invalid (minimum exceeding maximum, or a
-  minimum below the smallest coherent exchange).
+  configured range, and MUST refuse to start when the range is invalid: a minimum exceeding the maximum, or a
+  minimum below **2**. Two turns — one from each party — is the smallest exchange that can be an exchange;
+  a single turn is a statement, and no coherence rubric can meaningfully score one.
 - **FR-009b**: The generator MUST structurally validate every model response before accepting it as a
   record, and MUST discard and account for any response that is unparseable, structurally invalid, or
   violates the ordering, alternation, non-emptiness, or turn-count constraints in FR-009 and FR-009d.
@@ -263,13 +269,25 @@ stated tolerance.
   judge, against a committed, versioned rubric.
 - **FR-009g**: The coherence rubric MUST be a committed artifact whose identifying hash is recorded in the
   manifest as a run input, so a change in judging standards is visible as a change in provenance.
+- **FR-009p**: The rubric MUST declare an identifier, a version, its **criteria**, and each criterion's
+  **weight**. The coherence score is the weighted mean of the judge's per-criterion scores, each on a
+  normalized 0–1 scale. This is what gives the threshold a stable meaning: a holistic score would mean
+  whatever the judging model read the prose to mean and would drift with the model, whereas a declared
+  criterion set makes the rubric a checkable artifact and lets a low score be attributed to a specific
+  criterion during calibration. Weights MUST sum to 1, and a rubric that does not is a configuration error.
 - **FR-009h**: Records scoring below a configured coherence threshold MUST be discarded and accounted for
   under a distinct coherence discard reason. The threshold defaults to **0.8** on a normalized 0–1 scale.
 - **FR-009i**: Each accepted record MUST carry the coherence score it received, so the corpus can be
   filtered or stratified by quality without re-judging it.
 - **FR-009j**: The identity and parameters of the judging model MUST be recorded in the manifest alongside
   those of the generating model, because the judge is a non-deterministic input that shapes which records
-  survive (Constitution Principle II).
+  survive (Constitution Principle II). The judge MAY be the same model as the generator, and is by default.
+- **FR-009q**: Because judging is a model call, **the set of records that survives is not perfectly
+  reproducible**: the same conversation may be admitted by one run and discarded by another. This is
+  accepted behaviour, not a defect, and is the reason FR-009g, FR-009i, and FR-009j require the rubric hash,
+  the per-record score, and the judge's identity and parameters to be recorded — the gate is auditable
+  though it is not deterministic. FR-010's reproducibility claim covers structure and composition, which are
+  seeded, and deliberately does not extend to which records survive judging.
 - **FR-009k**: A coherence discard rate above a configured threshold MUST fail the run, because a generator
   whose output is mostly rejected is defective and filtering around it would mask the defect. The threshold
   defaults to **10%** of records generated, with "records generated" as defined in FR-026a.
@@ -278,11 +296,29 @@ stated tolerance.
 - **FR-009c**: The generator MUST tolerate transient model failures without losing completed work — a
   failed or rejected response MUST NOT abort a run that can still proceed, and repeated failure MUST be
   reported as a discard reason rather than silently reducing corpus size.
+- **FR-009m**: A model that **declines a request on safety grounds** is a distinct outcome from an
+  unparseable response and from a transport failure, and MUST be handled as such: the slot is retried, and a
+  slot that keeps being declined is discarded under a **model refusal** reason rather than counted as a
+  malformed response. Conflating the two would hide a prompt domain that systematically trips a classifier
+  behind a statistic that reads as a flaky provider.
+- **FR-009n**: A record produced by a model **other than the one configured** — because a declined request
+  was rescued elsewhere — is acceptable corpus output, provided FR-027a's per-record model identity is
+  recorded and the manifest reports how many records each model served. A corpus may therefore contain
+  records from more than one model; what matters is that no record misstates which model produced it, and
+  that a datasheet can report the mix.
+- **FR-009o**: The number of attempts a slot receives MUST be a **single configured value** covering every
+  retryable per-record failure — a declined request, an unparseable or structurally invalid response, and an
+  unscorable one alike. It is distinct from transport-level retries of a single request, which are reported
+  separately under FR-012d, because a degraded provider and a defective generator are different facts.
 - **FR-010**: Given the same seed, configuration, and prompt document, the generator MUST produce output
   that is equivalent in structure and composition. Exact textual reproduction is NOT guaranteed, because
   model sampling is not reproducible in general; the manifest MUST therefore record the model identity, its
   parameters, and any sampling seed, so that a run that cannot be replayed can still be audited
   (Constitution Principle II).
+- **FR-009r**: The configuration MUST carry the **language** conversations are generated in, defaulting to
+  English, and it MUST be recorded in the manifest. Without an explicit setting the corpus language is
+  whatever the prompt document happens to elicit, and can drift between runs with no record of having done
+  so. Declaring it makes a multilingual corpus a deliberate act and a monolingual one a stated fact.
 - **FR-011**: The generator MUST refuse to run on an invalid or internally contradictory configuration,
   naming the specific problem, rather than producing partial output.
 - **FR-012**: The generator MUST write records incrementally so that memory does not grow with corpus size
@@ -613,7 +649,14 @@ stated tolerance.
 - **Two-party conversations by default**: Records represent a customer and a support agent. Additional roles
   are accommodated by enumerating them in the schema rather than by relaxing coherence expectations.
 - **English-first, not English-only**: Initial content is expected to be English, but nothing may assume it;
-  multilingual and non-Latin content must be valid.
+  multilingual and non-Latin content must be valid. The language is a declared configuration value defaulting
+  to English (FR-009r), so "English" is a recorded fact about a corpus rather than an accident of prompting.
+- **The judge may share the generator's model, and self-preference is the accepted risk**: Both roles default
+  to the same model. A model evaluating its own output can favour it, and the mitigation here is not
+  structural but empirical — the judge scores against declared rubric criteria rather than choosing between
+  candidates, and SC-011's calibration against human judgement is what would expose a systematic bias.
+  Pointing the two roles at different models is a configuration change, not a code change, if calibration
+  shows it is needed.
 - **Quarantined records are synthetic, not personal data**: A record held in quarantine (FR-021b) is
   fabricated content that a pattern detector found identifier-shaped — not a real identifier. That is why
   retaining it under the project's intermediate output is compatible with the constitution's requirement

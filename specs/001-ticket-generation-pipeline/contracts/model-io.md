@@ -65,7 +65,7 @@ response = await client.beta.messages.create(
 
 | Condition | Handling |
 |-----------|----------|
-| `stop_reason == "refusal"` after fallback | Slot retry; on exhaustion, discard `model_refusal` |
+| `stop_reason == "refusal"` after fallback | Slot retry; on exhaustion, discard `model_refusal` — a distinct outcome from a malformed response, so a prompt domain that trips a classifier is visible rather than hidden behind a flaky-provider statistic (FR-009m). A record rescued by a fallback model stays in the corpus and names its actual producer (FR-009n, FR-027a) |
 | `stop_reason == "max_tokens"` | Treated as structurally invalid — a truncated conversation is never coerced into a record |
 | Unparseable or schema-invalid JSON | Slot retry; on exhaustion, discard `structural_invalid` |
 | `RateLimitError`, 5xx, connection error | SDK retries; on exhaustion, counted toward the consecutive-failure limit |
@@ -82,8 +82,9 @@ burning the remaining corpus emitting discards (spec Edge Cases).
 **byte-stable across a run** — the volatile per-slot content goes in the user message — so the system
 prefix caches and the run does not pay for the domain document 100,000 times.
 
-**User message** carries the slot's assignment: the four metadata values, the exact turn count, and the
-**assigned subdomain**, chosen by a seeded draw from the prompt document's declared list (FR-008d). The
+**User message** carries the slot's assignment: the four metadata values, the exact turn count, the
+configured language (FR-009r), and the **assigned subdomain**, chosen by a seeded draw from the prompt
+document's declared list (FR-008d). The
 model elaborates a specific situation within that subdomain; it does not choose the subdomain itself.
 
 **Response schema** (`GeneratedConversation`):
@@ -117,7 +118,7 @@ The model returns **content only**. It never sees or writes `record_id`, `run_id
 `index` is assigned by the pipeline from array order.
 
 **Post-conditions checked by the pipeline** (each a named discard, never a coercion — FR-009b):
-turn count equals the slot's `turn_count`; roles alternate strictly starting with `customer`; no turn is
+turn count equals the slot's `turn_count`; roles alternate strictly and the **customer opens** (FR-009); no turn is
 empty or whitespace-only; `scenario` is non-empty. The record's `subdomain` is written by the pipeline from
 the slot, never taken from the response.
 
@@ -145,7 +146,10 @@ run, so it caches.
 }
 ```
 
-Only `score` and the rubric ID reach the record (FR-009i). `criteria` and `justification` are used during
+The pipeline computes the coherence score as the **weighted mean of `criteria`** using the rubric's declared
+weights, rather than trusting a `score` the model reports alongside them (FR-009p) — a model can return a
+holistic number inconsistent with its own sub-scores, and the derived value is the one the threshold means.
+Only that score and the rubric ID reach the record (FR-009i). `criteria` and `justification` are used during
 calibration (SC-011) and then dropped — they are only meaningful beside the rubric version that produced
 them, and persisting them would multiply corpus size for no downstream use.
 
@@ -156,7 +160,7 @@ them, and persisting them would multiply corpus size for no downstream use.
 | Artifact | Path | Role |
 |----------|------|------|
 | Domain prompt document | `prompts/domain.md` | The support domain, **declaring an enumerable list of subdomains** (FR-008d). Its hash is a run input; `source_id` derives from it (FR-008a). A slot's subdomain is a seeded choice from that list; the model elaborates the situation within it |
-| Coherence rubric | `prompts/coherence-rubric.md` | What the judge scores against. Carries `rubric_id` and a version header; its hash is a run input (FR-009g) |
+| Coherence rubric | `prompts/coherence-rubric.md` | What the judge scores against. Declares `rubric_id`, a version, its **criteria, and each criterion's weight** — weights summing to 1 (FR-009p). Its hash is a run input (FR-009g) |
 
 Both are committed files, not strings in code. Changing either changes the manifest's input hashes, so a
 change in domain or in judging standards is visible as a change in provenance rather than as an unexplained

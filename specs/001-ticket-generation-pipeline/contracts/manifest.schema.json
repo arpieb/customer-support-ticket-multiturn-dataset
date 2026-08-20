@@ -104,7 +104,7 @@
           "$ref": "#/$defs/ModelRecord"
         }
       },
-      "description": "Both roles recorded: the judge shapes which records survive and is therefore a non-deterministic input (FR-009j, FR-027)."
+      "description": "Both roles recorded: the judge shapes which records survive and is therefore a non-deterministic input (FR-009j, FR-027). The judge may be the same model as the generator and is by default; self-preference bias is an accepted risk checked by SC-011 calibration, not by a structural rule."
     },
     "fallbacks_used": {
       "type": "object",
@@ -112,7 +112,7 @@
         "type": "integer",
         "minimum": 0
       },
-      "description": "Model ID -> records it served after a refusal fallback. Empty when none occurred."
+      "description": "Model ID -> records it served after a refusal fallback. A corpus may contain records from more than one model (FR-009n); each record names its own producer (FR-027a). Empty when no fallback occurred."
     },
     "started_at": {
       "type": "string",

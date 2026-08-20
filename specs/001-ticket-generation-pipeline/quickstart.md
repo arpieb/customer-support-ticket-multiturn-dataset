@@ -46,7 +46,18 @@ generating (FR-031b). Widening it deliberately is exactly what that requirement 
 
 **Expect**: exit `0`; `data/release/smoke.jsonl` with exactly the requested number of lines; a manifest and
 report beside it. Every record validates against the record contract, its turns alternate `customer` /
-`agent` starting with the customer, no turn is empty, and each conversation concerns one support issue.
+`agent` **starting with the customer** (FR-009), no turn is empty, its turn count lies in the configured
+range, and each conversation concerns one support issue.
+
+Turn counts are drawn uniformly from the range (FR-009d), which is testable rather than merely asserted:
+
+```bash
+uv run python -c "
+import json, collections
+c=collections.Counter(len(json.loads(l)['turns']) for l in open('data/release/smoke.jsonl'))
+print(sorted(c.items()))   # spread across [min, max]; chi-square it at larger N
+"
+```
 
 ```bash
 wc -l data/release/smoke.jsonl

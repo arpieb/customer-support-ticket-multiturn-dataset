@@ -72,7 +72,7 @@ identifier rather than a path.
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
 | `index` | `int` | yes | ≥ 0; ascends contiguously from 0 within a record (FR-004, FR-009) |
-| `role` | `Role` | yes | Closed set (FR-005). Turn 0 is `customer`; roles alternate strictly (FR-009) |
+| `role` | `Role` | yes | Closed set (FR-005). Turn 0 is `customer` — the party raising the issue opens, by requirement rather than convention — and roles alternate strictly (FR-009) |
 | `content` | `str` | yes | Not empty and not whitespace-only (FR-009). Any Unicode — non-Latin, emoji, RTL — is valid (spec Edge Cases); no maximum length is assumed |
 
 There is no per-turn timestamp: FR-004 requires role, position, and content, and a fabricated per-turn clock
@@ -97,7 +97,7 @@ model. That is what makes FR-031's tolerance achievable by construction.
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
 | `coherence_score` | `float` | yes | `0.0 ≤ score ≤ 1.0`, and `≥` the run's configured threshold — a record below it never reaches the corpus (FR-009h, FR-009i, SC-009) |
-| `rubric_id` | `str` | yes | Identifies the rubric version that produced the score (FR-009g); a score is meaningless without it |
+| `rubric_id` | `str` | yes | Identifies the rubric version that produced the score (FR-009g, FR-009p); a score is meaningless without it, because the criteria and weights that produced it live in the rubric |
 
 ### GenerationInfo
 
@@ -122,7 +122,8 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `prompt_document` | `path` | `prompts/domain.md` | Must exist; hashed as a run input (FR-008a) |
 | `rubric` | `path` | `prompts/coherence-rubric.md` | Must exist; hashed as a run input (FR-009g) |
 | `composition` | `Composition \| None` | `None` | When absent, the documented default distribution applies (FR-033) |
-| `turns.min` / `turns.max` | `int` | `4` / `12` | `2 ≤ min ≤ max`; a `min` below 2 cannot be a two-party exchange (FR-009d, FR-009e, FR-033) |
+| `turns.min` / `turns.max` | `int` | `4` / `12` | `2 ≤ min ≤ max` (FR-009e); each conversation's length is drawn **uniformly** from the range with the slot's own generator (FR-009d, FR-033) |
+| `language` | `str` | `en` | The language conversations are generated in; recorded in the manifest so a corpus states its language rather than inheriting it from the prompt (FR-009r) |
 | `coherence.threshold` | `float` | `0.8` | `0.0–1.0` (FR-009h) |
 | `coherence.max_discard_rate` | `float` | `0.10` | `coherence_below_threshold` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-009k) |
 | `privacy.max_discard_rate` | `float` | `0.005` | `privacy_finding` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-021a) |
@@ -130,7 +131,7 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `models.generator` / `models.judge` | `ModelSpec` | `claude-opus-5` | Model ID, effort, `max_tokens`; recorded in the manifest (FR-027) |
 | `max_concurrency` | `int` | `8` | ≥ 1 (FR-012a) |
 | `requests_per_minute` | `int` | `1000` | ≥ 1; the run's self-imposed bound (FR-012e) |
-| `max_attempts_per_slot` | `int` | `3` | ≥ 1; exhausting it discards the slot as `attempts_exhausted` (FR-009c) |
+| `max_attempts_per_slot` | `int` | `3` | ≥ 1. The **single** knob for every retryable per-record failure — refusal, unparseable or invalid response, unscorable record alike (FR-009o). Distinct from transport retries, which the SDK owns and FR-012d reports separately. Exhausting it discards the slot as `attempts_exhausted` |
 | `consecutive_failure_limit` | `int` | `50` | Stops and checkpoints rather than burning the corpus (spec Edge Cases) |
 | `checkpoint_interval` | `int` | `100` | Records between checkpoints (FR-015a) |
 | `budget.max_runtime` | `duration \| None` | `None` | Wall-clock ceiling; exhausting it stops and checkpoints rather than failing (FR-012f) |
@@ -171,7 +172,7 @@ Not persisted in the corpus; the unit of work the pipeline schedules. Every fiel
 |-------|------|-------|
 | `position` | `int` | `[0, record_count)`; becomes `record_index` |
 | `assignment` | `TicketMetadata` fields | The four apportioned dimensions plus derived timestamps |
-| `turn_count` | `int` | Sampled from the configured range with the slot's own generator (FR-009d) |
+| `turn_count` | `int` | Drawn **uniformly** from the configured range with the slot's own generator (FR-009d) |
 | `subdomain` | `str` | Chosen from the prompt document's declared list with the slot's own generator (FR-008d); the elaborated scenario comes back on the record |
 | `attempt` | `int` | 0-based; part of the derivation key, so a retry re-rolls rather than repeating |
 
@@ -327,7 +328,7 @@ record (FR-009b, spec Edge Cases).
 | Field | Type | Rules |
 |-------|------|-------|
 | `score` | `float` | `0.0–1.0`, normalized (FR-009f) |
-| `criteria` | `map[str, float]` | Per-criterion sub-scores from the rubric; used during calibration, not persisted |
+| `criteria` | `map[str, float]` | One entry per criterion the rubric declares, each in `[0,1]`. The coherence score is their **weighted mean**, using the rubric's declared weights (FR-009p) — the pipeline computes it rather than trusting a score the model reports alongside its own sub-scores. Used during calibration; not persisted |
 | `justification` | `str` | Short; not persisted (research R11) |
 
 A response that cannot be parsed or validated after the configured retries is a discard under

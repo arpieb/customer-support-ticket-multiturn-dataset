@@ -280,17 +280,24 @@ source snapshot in the manifest (complete, but bloats every manifest and duplica
 
 ## R11: Judging — rubric, scoring, and the calibration gap
 
-**Decision**: A **committed, versioned rubric** at `prompts/coherence-rubric.md` carrying its own
-`rubric_id` and version header; its `sha256` is a manifest input hash (FR-009g). The judge receives the
-record's turns and the rubric and returns a **constrained JSON object** — a normalized `score` in `[0, 1]`,
-per-criterion sub-scores, and a short justification. The record retains only `coherence_score` and
+**Decision**: A **committed, versioned rubric** at `prompts/coherence-rubric.md` declaring its `rubric_id`,
+version, criteria, and per-criterion weights (FR-009p); its `sha256` is a manifest input hash (FR-009g). The
+judge receives the record's turns and the rubric and returns a **constrained JSON object** of per-criterion
+scores plus a short justification, and the pipeline computes the coherence score as their **weighted mean**
+rather than trusting a holistic number the model reports alongside them. The judge defaults to the same
+model as the generator. The record retains only `coherence_score` and
 `rubric_id` plus the judging model's identity (FR-009i). SC-011 calibration is supported by a
 `sample-for-review` CLI command that exports a seeded random sample with scores for human comparison; the
 calibration itself is a documented human procedure, not an automated gate.
 
 **Rationale**: A rubric that lives in a prompt string is a rubric that changes invisibly; committing it and
 hashing it into the manifest makes a change in judging standards a change in provenance, which is what
-FR-009g asks for. Constraining the judge's response makes an unparseable score impossible in the normal
+FR-009g asks for. Declaring criteria and weights rather than prose is what gives the 0.8 threshold a stable
+meaning — a holistic score means whatever the model reads the prose to mean and drifts with the model —
+and it lets a low score be attributed to a criterion during calibration. Sharing the generator's model is
+the accepted default: self-preference bias is real, but the judge scores declared criteria rather than
+choosing between candidates, and SC-011's calibration is what would expose it. Pointing the roles at
+different models is then a configuration change, not a code change. Constraining the judge's response makes an unparseable score impossible in the normal
 case and a clean discard (FR-009l) in the abnormal one. Sub-scores and justification are useful during
 calibration but are deliberately **not** persisted on the record — they would multiply corpus size for
 information that is only meaningful next to the rubric version that produced it.
