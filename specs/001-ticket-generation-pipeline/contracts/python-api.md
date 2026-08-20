@@ -12,18 +12,14 @@ change without a version bump.
 
 ```python
 from ticket_dataset import (
-    SCHEMA_VERSION,  # "1.0.0"
-    TicketRecord,  # Pydantic v2 model — authoritative (Principle I)
+    SCHEMA_VERSION,       # "1.0.0"
+    TicketRecord,         # Pydantic v2 model — authoritative (Principle I)
     ConversationTurn,
     TicketMetadata,
     RecordQuality,
     GenerationInfo,
-    Role,
-    Category,
-    Priority,
-    Channel,
-    ResolutionStatus,
-    export_json_schema,  # () -> dict — must equal contracts/record.schema.json
+    Role, Category, Priority, Channel, ResolutionStatus,
+    export_json_schema,   # () -> dict — must equal contracts/record.schema.json
 )
 ```
 
@@ -37,7 +33,7 @@ its output to `contracts/record.schema.json` and fails on drift.
 ```python
 from ticket_dataset import GenerationConfig, Composition, load_config
 
-config = load_config(Path("configs/smoke.toml"))  # raises ConfigError, naming the problem
+config = load_config(Path("configs/smoke.toml"))   # raises ConfigError, naming the problem
 ```
 
 `load_config` performs **total** validation (FR-011): shape, ranges, threshold bounds, turn range,
@@ -69,7 +65,7 @@ member hide behind well-served ones (FR-031).
 from ticket_dataset import GenerationRun, RunResult
 
 run = GenerationRun(config=config, seed=42, model_client=client)
-result: RunResult = await run.execute()  # or run.resume()
+result: RunResult = await run.execute()          # or run.resume()
 ```
 
 `RunResult` exposes `manifest`, `report`, `artifact_path`, `verdict`, and `outcome` — one of `completed`,
@@ -123,11 +119,11 @@ The protocol in [model-io.md](./model-io.md). `AnthropicModelClient` is the only
 
 ```python
 from ticket_dataset import (
-    Detector,  # Protocol: name, categories, scan(text) -> list[Match]
-    DetectorRegistry,  # register / assert_floor_covered / scan_record
+    Detector,             # Protocol: name, categories, scan(text) -> list[Match]
+    DetectorRegistry,     # register / assert_floor_covered / scan_record
     PIICategory,
     PrivacyFinding,
-    ExceptionStore,  # fingerprint-based; never stores raw values
+    ExceptionStore,       # fingerprint-based; never stores raw values
 )
 ```
 
@@ -172,7 +168,7 @@ finding format, and the gate are untouched (FR-017).
 ```python
 from ticket_dataset import RunManifest, RunReport, Verdict, DiscardReason, validate_manifest
 
-problems: list[str] = validate_manifest(manifest_dict)  # empty when valid
+problems: list[str] = validate_manifest(manifest_dict)   # empty when valid
 ```
 
 `validate_manifest` checks contract conformance **and** the reconciliation rule
