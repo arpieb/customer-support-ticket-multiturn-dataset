@@ -82,55 +82,67 @@ async def run_slots(
     an unscorable record alike — while transport retries stay the SDK's business (FR-009o).
     """
     stats = stats or PipelineStats()
-    semaphore = asyncio.Semaphore(max_concurrency)
     stop = asyncio.Event()
     stop_reason: list[str] = []
     lock = asyncio.Lock()
 
     async def work(slot: Slot) -> None:
-        async with semaphore:
+        if stop.is_set():
+            return
+        outcome = SlotOutcome(position=slot.position)
+        for attempt in range(max_attempts):
+            outcome = await attempt_slot(slot, attempt)
+            outcome.attempts = attempt + 1
+            async with lock:
+                stats.responses += 1
+                if outcome.retries:
+                    stats.retries["transport"] += outcome.retries
+            if outcome.accepted:
+                break
+            async with lock:
+                if outcome.discard_reason is not None:
+                    stats.discards[outcome.discard_reason] += 1
             if stop.is_set():
                 return
-            outcome = SlotOutcome(position=slot.position)
-            for attempt in range(max_attempts):
-                outcome = await attempt_slot(slot, attempt)
-                outcome.attempts = attempt + 1
-                async with lock:
-                    stats.responses += 1
-                    if outcome.retries:
-                        stats.retries["transport"] += outcome.retries
-                if outcome.accepted:
-                    break
-                async with lock:
-                    if outcome.discard_reason is not None:
-                        stats.discards[outcome.discard_reason] += 1
-                if stop.is_set():
-                    return
 
-            async with lock:
-                if outcome.accepted:
-                    stats.consecutive_failures = 0
-                else:
-                    if outcome.discard_reason is None:
-                        outcome.discard_reason = DiscardReason.ATTEMPTS_EXHAUSTED
-                        stats.discards[DiscardReason.ATTEMPTS_EXHAUSTED] += 1
-                    stats.consecutive_failures += 1
-                    if stats.consecutive_failures >= consecutive_failure_limit:
-                        # Stop and checkpoint rather than spend the rest of the corpus finding
-                        # out the provider is still down.
-                        stop.set()
-                if on_outcome is not None:
-                    on_outcome(outcome)
-                if on_progress is not None:
-                    reason = on_progress()
-                    if reason is not None:
-                        # A budget ceiling or a sustained threshold breach: stop and keep what
-                        # has been produced, rather than spending the rest of the corpus finding
-                        # out (FR-012f, FR-037).
-                        stop_reason.append(reason)
-                        stop.set()
+        async with lock:
+            if outcome.accepted:
+                stats.consecutive_failures = 0
+            else:
+                if outcome.discard_reason is None:
+                    outcome.discard_reason = DiscardReason.ATTEMPTS_EXHAUSTED
+                    stats.discards[DiscardReason.ATTEMPTS_EXHAUSTED] += 1
+                stats.consecutive_failures += 1
+                if stats.consecutive_failures >= consecutive_failure_limit:
+                    # Stop and checkpoint rather than spend the rest of the corpus finding
+                    # out the provider is still down.
+                    stop.set()
+            if on_outcome is not None:
+                on_outcome(outcome)
+            if on_progress is not None:
+                reason = on_progress()
+                if reason is not None:
+                    # A budget ceiling or a sustained threshold breach: stop and keep what
+                    # has been produced, rather than spending the rest of the corpus finding
+                    # out (FR-012f, FR-037).
+                    stop_reason.append(reason)
+                    stop.set()
 
-    await asyncio.gather(*(work(slot) for slot in slots))
+    # A fixed pool of workers pulling from a shared iterator, rather than one task per slot.
+    # Spawning 100,000 coroutines would hold 100,000 frames whatever the semaphore allowed, which
+    # is the same memory-scales-with-corpus problem the reorder buffer exists to avoid (FR-012).
+    pending = iter(slots)
+    iterator_lock = asyncio.Lock()
+
+    async def worker() -> None:
+        while not stop.is_set():
+            async with iterator_lock:
+                slot = next(pending, None)
+            if slot is None:
+                return
+            await work(slot)
+
+    await asyncio.gather(*(worker() for _ in range(min(max_concurrency, len(slots) or 1))))
     if stop.is_set():
         raise RunStopped(
             stop_reason[0]

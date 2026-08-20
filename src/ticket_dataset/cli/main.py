@@ -258,6 +258,59 @@ def privacy_approve(
     raise typer.Exit(EXIT_OK)
 
 
+@app.command("sample-for-review")
+def sample_for_review(
+    corpus: Annotated[Path, typer.Option(help="The corpus to sample from.")],
+    seed: Annotated[int, typer.Option(help="Explicit — the sample is itself reproducible.")],
+    n: Annotated[int, typer.Option(help="Sample size.")] = 50,
+    out: Annotated[Path | None, typer.Option(help="Write JSONL here instead of stdout.")] = None,
+) -> None:
+    """Export a seeded random sample with scores, for human calibration (SC-011).
+
+    The calibration judgement is a human act; this exists so it is cheap rather than automated.
+    **Nothing enforces that it happens**: no requirement obliges a calibration record to exist or
+    a release to cite one (checklist CHK063), so whether the coherence threshold was ever
+    validated leaves no trace in this repository.
+    """
+    import json as _json
+    import random as _random
+
+    if not corpus.exists():
+        _note(f"{corpus} does not exist")
+        raise typer.Exit(EXIT_REFUSED)
+
+    records = [_json.loads(line) for line in corpus.read_text().splitlines() if line.strip()]
+    if not records:
+        _note(f"{corpus} contains no records")
+        raise typer.Exit(EXIT_REFUSED)
+
+    chosen = _random.Random(seed).sample(records, min(n, len(records)))
+    lines = [
+        _json.dumps(
+            {
+                "record_id": record["record_id"],
+                "record_index": record["record_index"],
+                "subdomain": record["subdomain"],
+                "scenario": record["scenario"],
+                "metadata": record["metadata"],
+                "turns": record["turns"],
+                "coherence_score": record["quality"]["coherence_score"],
+                "rubric_id": record["quality"]["rubric_id"],
+            },
+            ensure_ascii=False,
+        )
+        for record in chosen
+    ]
+    rendered = "\n".join(lines) + "\n"
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(rendered)
+        _note(f"wrote {len(chosen)} records to {out}")
+    else:
+        print(rendered, end="")
+    raise typer.Exit(EXIT_OK)
+
+
 @app.command("schema")
 def schema_export(
     out: Annotated[Path | None, typer.Option(help="Write to a file instead of stdout.")] = None,

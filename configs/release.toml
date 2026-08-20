@@ -1,0 +1,26 @@
+# The release acceptance run: 100,000 records, on the order of 200,000 model calls before
+# retries and discards. **Never part of CI.**
+#
+# The budget is the ceiling an unattended run needs. Exhausting either stops and checkpoints
+# rather than failing, so no completed work is lost and resuming stays your decision (FR-012f).
+# A defective generator does not cost the full run either: the privacy and coherence discard
+# rates are re-evaluated once 5,000 records exist, and a breach stops and checkpoints (FR-037).
+record_count = 100000
+output_path = "data/release/support-tickets-v1.jsonl"
+max_concurrency = 16
+requests_per_minute = 1000
+checkpoint_interval = 250
+
+[budget]
+max_runtime = "PT12H"
+max_model_calls = 250000
+
+[turns]
+min = 4
+max = 12
+
+[time_window]
+start = 2025-07-01
+end = 2026-01-01
+
+# No composition block: the documented default distribution applies (FR-033).

@@ -182,9 +182,12 @@ def _worst_drift(
 ) -> tuple[str, str, float] | None:
     """The single member furthest from its request, which is what the tolerance judges."""
     worst: tuple[str, str, float] | None = None
-    for dimension, wanted in requested.items():
+    for dimension in sorted(requested):
+        wanted = requested[dimension]
         got = achieved.get(dimension, {})
-        for member in set(wanted) | set(got):
+        # Sorted, and ties broken by name: two members equally far from their request must not
+        # produce a different report on different runs.
+        for member in sorted(set(wanted) | set(got)):
             drift = abs(got.get(member, 0.0) - wanted.get(member, 0.0)) * 100
             if worst is None or drift > worst[2]:
                 worst = (dimension, member, drift)

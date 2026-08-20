@@ -226,25 +226,35 @@ within ±2pp and that requested, assigned, and achieved distributions are all re
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T102 [P] Implement `sample-for-review` in `src/ticket_dataset/cli/main.py` exporting a seeded random sample with scores, so SC-011 calibration is cheap (contracts/cli.md)
-- [ ] T103 [P] Implement `schema export` in `src/ticket_dataset/cli/main.py`, writing the normalized export to stdout or `--out` (Constitution I). The drift check itself is T015, already running under the workflow added in Phase 1
-- [ ] T104 [P] Re-export the public surface from `src/ticket_dataset/__init__.py` exactly as [contracts/python-api.md](./contracts/python-api.md) specifies
-- [ ] T105 [P] Add a contract test in `tests/contract/test_public_api.py` asserting every documented name is importable and no undocumented name is exported
-- [ ] T106 [P] Add `configs/release.toml`: 100,000 records with a declared budget (`max_runtime`, `max_model_calls`) — the release acceptance run, never part of CI
-- [ ] T107 [P] Add a memory-shape test in `tests/integration/test_memory_shape.py` generating 10,000 records against `FakeModelClient` and asserting peak memory does not scale with corpus size (SC-001, FR-012)
-- [ ] T108 [P] Write `README.md` covering installation, credentials, writing a configuration, and one worked run — the documentation SC-010's claim rests on (SC-010)
-- [ ] T109 Run every quickstart scenario end to end and reconcile any divergence between [quickstart.md](./quickstart.md) and actual behavior
-- [ ] T110 [P] Review `.github/workflows/ci.yml` against the finished suite: confirm it runs the record-contract drift check, the manifest-contract drift check, and the offline-install guard, that `configs/release.toml` is never invoked, and that no job carries model credentials (Constitution I, II)
+- [X] T102 [P] Implement `sample-for-review` in `src/ticket_dataset/cli/main.py` exporting a seeded random sample with scores, so SC-011 calibration is cheap (contracts/cli.md)
+- [X] T103 [P] Implement `schema export` in `src/ticket_dataset/cli/main.py`, writing the normalized export to stdout or `--out` (Constitution I). The drift check itself is T015, already running under the workflow added in Phase 1
+- [X] T104 [P] Re-export the public surface from `src/ticket_dataset/__init__.py` exactly as [contracts/python-api.md](./contracts/python-api.md) specifies
+- [X] T105 [P] Add a contract test in `tests/contract/test_public_api.py` asserting every documented name is importable and no undocumented name is exported
+- [X] T106 [P] Add `configs/release.toml`: 100,000 records with a declared budget (`max_runtime`, `max_model_calls`) — the release acceptance run, never part of CI
+- [X] T107 [P] Add a memory-shape test in `tests/integration/test_memory_shape.py` generating 10,000 records against `FakeModelClient` and asserting peak memory does not scale with corpus size (SC-001, FR-012)
+- [X] T108 [P] Write `README.md` covering installation, credentials, writing a configuration, and one worked run — the documentation SC-010's claim rests on (SC-010)
+- [X] T109 Run every quickstart scenario end to end and reconcile any divergence between [quickstart.md](./quickstart.md) and actual behavior
+- [X] T110 [P] Review `.github/workflows/ci.yml` against the finished suite: confirm it runs the record-contract drift check, the manifest-contract drift check, and the offline-install guard, that `configs/release.toml` is never invoked, and that no job carries model credentials (Constitution I, II)
 
 ### Constitution Gates (required for any release-path change)
 
-- [ ] T111 Verify schema validation over 100% of produced records via the generator's own pre-write check, evidenced by `tests/integration/test_generate_smoke.py` (Constitution I, V; FR-007, SC-002)
-- [ ] T112 Verify the blocking PII scan runs ahead of any write with demonstrated floor coverage, evidenced by `tests/integration/test_privacy_blocks.py` and `tests/unit/test_registry.py` (Constitution IV, V; FR-016, FR-016a, FR-018a)
-- [ ] T113 Verify the manifest emits seed, serialized config, code revision, input hashes, record counts, and discard accounting that reconciles exactly, evidenced by `tests/unit/test_manifest_validation.py` and `tests/contract/test_manifest_schema.py` (Constitution II, III; FR-025, FR-026)
-- [ ] T114 Verify the quality invariants — turn ordering, customer-first alternation, no empty or truncated turns, duplicate reporting — are enforced, evidenced by `tests/unit/test_structural_validation.py` and `tests/unit/test_dedup.py` (Constitution V; FR-009, FR-034)
-- [ ] T115 Verify every data-transforming module under `src/ticket_dataset/` has contract and edge-case tests under `tests/` before it produces a released artifact (Constitution V)
+- [X] T111 Verify schema validation over 100% of produced records via the generator's own pre-write check, evidenced by `tests/integration/test_generate_smoke.py` (Constitution I, V; FR-007, SC-002)
+- [X] T112 Verify the blocking PII scan runs ahead of any write with demonstrated floor coverage, evidenced by `tests/integration/test_privacy_blocks.py` and `tests/unit/test_registry.py` (Constitution IV, V; FR-016, FR-016a, FR-018a)
+- [X] T113 Verify the manifest emits seed, serialized config, code revision, input hashes, record counts, and discard accounting that reconciles exactly, evidenced by `tests/unit/test_manifest_validation.py` and `tests/contract/test_manifest_schema.py` (Constitution II, III; FR-025, FR-026)
+- [X] T114 Verify the quality invariants — turn ordering, customer-first alternation, no empty or truncated turns, duplicate reporting — are enforced, evidenced by `tests/unit/test_structural_validation.py` and `tests/unit/test_dedup.py` (Constitution V; FR-009, FR-034)
+- [X] T115 Verify every data-transforming module under `src/ticket_dataset/` has contract and edge-case tests under `tests/` before it produces a released artifact (Constitution V)
+  - **Verified 2026-08-20.** 43 modules; the check found 10 without direct tests and five of them warranted new suites — `privacy/fiction.py`, `generation/frontmatter.py`, `run/budget.py`, `run/retention.py`, `run/report.py`, plus `generation/prompts.py` and `generation/pipeline.py`. Writing them found two defects: the reserved-domain check matched only apexes, so `sub.example.com` was not recognised as reserved, and the report's worst-drift tie-break depended on set order, so an equally-drifted pair could be named differently on different runs. Two modules remain without direct tests, both deliberately: `config/defaults.py` holds constants and transforms nothing, and `model/anthropic_client.py` is the network boundary that no test may exercise.
 - [ ] T116 Record a documented random-sample human review, and a coherence calibration, in the release datasheet before any release (Constitution V; SC-011) — **not enforced by code and has no file in this repository**: no requirement obliges a calibration record to exist (checklist CHK063), so this gate is a human obligation at release time
 - [ ] T117 Bump the dataset version and update the release datasheet — composition, generation method, model mix, known limitations, intended use, and **every active privacy exception** from `privacy/exceptions.json` (Constitution: Development Workflow; FR-022a)
+
+---
+
+> **T116 and T117 are deliberately unchecked.** Both are acts performed *at release*, and this
+> feature ships the pipeline rather than a corpus — "no released corpus is a deliverable here"
+> (spec Assumptions). Neither can be truthfully ticked until someone decides to publish a specific
+> corpus, at which point the human review, the calibration record, the version bump, and the
+> datasheet all come due. Ticking them now would be the exact kind of gate-by-assertion the
+> constitution's validation rules exist to prevent.
 
 ---
 
