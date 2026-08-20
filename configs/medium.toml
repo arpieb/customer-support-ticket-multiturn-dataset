@@ -1,0 +1,30 @@
+# Large enough to be interrupted mid-flight, with a checkpoint interval small enough that a kill
+# lands between checkpoints. Used by the interrupt/resume scenarios.
+record_count = 200
+output_path = "data/release/medium.jsonl"
+composition_tolerance_pp = 5.0
+max_concurrency = 4
+checkpoint_interval = 20
+
+[turns]
+min = 4
+max = 8
+
+[composition.category]
+billing = 0.25
+technical = 0.25
+account = 0.25
+shipping = 0.25
+
+[composition.priority]
+low = 0.25
+normal = 0.5
+high = 0.25
+
+[composition.channel]
+email = 0.5
+chat = 0.5
+
+[composition.resolution_status]
+resolved = 0.75
+escalated = 0.25

@@ -46,14 +46,25 @@ class OrderedWriter:
     _pending: dict[int, dict[str, Any]] = field(default_factory=dict)
     bytes_written: int = 0
     records_written: int = 0
+    #: The last position that actually produced a record. A resume continues from just after it,
+    #: so slots that were attempted but produced nothing — a provider outage kills the tail of an
+    #: interrupted run — get another attempt rather than being lost. Discards are already counted;
+    #: what is not counted is a corpus quietly ending up smaller than it was asked for (FR-009c).
+    last_written_position: int = -1
 
     def __post_init__(self) -> None:
         self.path = Path(self.path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
+    @property
+    def resume_position(self) -> int:
+        """Where a resume should continue: just after the last record actually written."""
+        return self.last_written_position + 1
+
     def open(self, *, start_position: int = 0, truncate_to: int | None = None) -> None:
         """Open the staging file, optionally truncating to a checkpointed length."""
         self._next_position = start_position
+        self.last_written_position = start_position - 1
         if truncate_to is not None and self.path.exists():
             # Resume: the file is always a prefix of the corpus because writes are in position
             # order, which is what makes a byte offset a sufficient recovery point (research R6).
@@ -73,6 +84,7 @@ class OrderedWriter:
             self._handle.write(line)
             self.bytes_written += len(line.encode("utf-8"))
             self.records_written += 1
+            self.last_written_position = self._next_position
             self._next_position += 1
             written += 1
         return written
@@ -90,6 +102,7 @@ class OrderedWriter:
                 self._handle.write(line)
                 self.bytes_written += len(line.encode("utf-8"))
                 self.records_written += 1
+                self.last_written_position = self._next_position
                 written += 1
             self._next_position += 1
         return written

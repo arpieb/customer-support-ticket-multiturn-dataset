@@ -49,6 +49,12 @@ def generate(
     config: Annotated[Path, typer.Option(help="The single serialized configuration.")],
     seed: Annotated[int, typer.Option(help="Explicit run seed; there is no default.")],
     out: Annotated[Path | None, typer.Option(help="Override the configured output path.")] = None,
+    resume: Annotated[
+        bool, typer.Option("--resume", help="Continue a checkpointed run for these inputs.")
+    ] = False,
+    run_id: Annotated[
+        str | None, typer.Option(help="Name the run to resume when several match.")
+    ] = None,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Validate and plan without calling a model.")
     ] = False,
@@ -69,7 +75,12 @@ def generate(
         raise typer.Exit(EXIT_REFUSED) from error
 
     try:
-        run = GenerationRun(config=loaded, seed=seed, model_client=AnthropicModelClient(loaded))
+        run = GenerationRun(
+            config=loaded,
+            seed=seed,
+            model_client=AnthropicModelClient(loaded),
+            run_id=run_id or "",
+        )
         slots = run.prepare()
     except TicketDatasetError as error:
         _note(str(error))

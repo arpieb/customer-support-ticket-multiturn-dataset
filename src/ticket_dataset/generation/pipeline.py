@@ -73,6 +73,7 @@ async def run_slots(
     consecutive_failure_limit: int,
     on_outcome: Callable[[SlotOutcome], None] | None = None,
     stats: PipelineStats | None = None,
+    on_progress: Callable[[], str | None] | None = None,
 ) -> PipelineStats:
     """Process every slot with bounded concurrency, retrying at the slot level.
 
@@ -83,6 +84,7 @@ async def run_slots(
     stats = stats or PipelineStats()
     semaphore = asyncio.Semaphore(max_concurrency)
     stop = asyncio.Event()
+    stop_reason: list[str] = []
     lock = asyncio.Lock()
 
     async def work(slot: Slot) -> None:
@@ -119,11 +121,23 @@ async def run_slots(
                         stop.set()
                 if on_outcome is not None:
                     on_outcome(outcome)
+                if on_progress is not None:
+                    reason = on_progress()
+                    if reason is not None:
+                        # A budget ceiling or a sustained threshold breach: stop and keep what
+                        # has been produced, rather than spending the rest of the corpus finding
+                        # out (FR-012f, FR-037).
+                        stop_reason.append(reason)
+                        stop.set()
 
     await asyncio.gather(*(work(slot) for slot in slots))
     if stop.is_set():
         raise RunStopped(
-            f"{stats.consecutive_failures} consecutive slots failed; stopping and checkpointing "
-            "rather than continuing (spec Edge Cases)"
+            stop_reason[0]
+            if stop_reason
+            else (
+                f"{stats.consecutive_failures} consecutive slots failed; stopping and "
+                "checkpointing rather than continuing (spec Edge Cases)"
+            )
         )
     return stats
