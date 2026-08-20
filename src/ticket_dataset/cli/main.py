@@ -331,6 +331,11 @@ def sample_for_review(
                 "turns": record["turns"],
                 "coherence_score": record["quality"]["coherence_score"],
                 "rubric_id": record["quality"]["rubric_id"],
+                # Fill these in, then run `ticket-dataset calibrate`. Left explicitly null rather
+                # than absent so a partially scored sample is visible rather than silently
+                # measuring a subset.
+                "human_score": None,
+                "human_criteria": {},
             },
             ensure_ascii=False,
         )
@@ -343,6 +348,88 @@ def sample_for_review(
         _note(f"wrote {len(chosen)} records to {out}")
     else:
         print(rendered, end="")
+    raise typer.Exit(EXIT_OK)
+
+
+@app.command("calibrate")
+def calibrate_command(
+    sample: Annotated[Path, typer.Argument(help="A sample with human_score filled in.")],
+    reviewer: Annotated[str, typer.Option("--by", help="Who did the scoring. Recorded.")],
+    rubric: Annotated[Path, typer.Option(help="The rubric the judge used.")] = Path(
+        "prompts/coherence-rubric.md"
+    ),
+    threshold: Annotated[
+        float, typer.Option(help="The gate the comparison is judged against.")
+    ] = 0.8,
+    seed: Annotated[int | None, typer.Option(help="The seed the sample was drawn with.")] = None,
+    out: Annotated[Path, typer.Option(help="Where the calibration record is written.")] = Path(
+        "calibration"
+    ),
+    notes: Annotated[str, typer.Option(help="What you concluded.")] = "",
+) -> None:
+    """Compare a hand-scored sample against the judge and record what it showed (SC-011).
+
+    Calibration is a human act; this does the arithmetic around it and leaves evidence that
+    survives the session — which rubric was judged, which sample, by whom, and what was found.
+
+    Two numbers, because they answer different questions. **Gate agreement** is whether the judge
+    and the reviewer make the same admit/reject decision at the threshold, which is what the
+    threshold is for. **Rank correlation** is whether the judge orders conversations the way a
+    person does: a uniformly generous judge that ranks correctly can be fixed by moving the
+    threshold; one that ranks badly cannot.
+    """
+    from ticket_dataset.generation.rubric import load_rubric
+    from ticket_dataset.run.calibration import (
+        assert_sample_matches_rubric,
+        calibrate,
+        load_scored_sample,
+    )
+
+    if not sample.exists():
+        _note(f"{sample} does not exist")
+        raise typer.Exit(EXIT_REFUSED)
+    try:
+        loaded_rubric = load_rubric(rubric)
+        records = load_scored_sample(sample)
+    except (TicketDatasetError, ValueError, json.JSONDecodeError) as error:
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    if not records:
+        _note(f"{sample} contains no scored records")
+        raise typer.Exit(EXIT_REFUSED)
+
+    try:
+        assert_sample_matches_rubric(records, loaded_rubric.rubric_id)
+    except ValueError as error:
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    record = calibrate(
+        records,
+        rubric_id=loaded_rubric.rubric_id,
+        rubric_sha256=loaded_rubric.sha256,
+        threshold=threshold,
+        reviewer=reviewer,
+        corpus=str(sample),
+        sample_seed=seed,
+        notes=notes,
+    )
+    written = record.write(out)
+
+    print(json.dumps(record.as_dict(), indent=2, sort_keys=True))
+    _note(f"calibration of {record.rubric_id} against {record.sample_size} records by {reviewer}")
+    _note(f"  gate: {record.gate_agreement_detail}")
+    if record.rank_correlation is None:
+        # The v1 failure: a judge returning one number has no ordering to correlate.
+        _note("  rank: undefined — one side gave every record the same score")
+    else:
+        _note(f"  rank: rho {record.rank_correlation:+.2f}")
+    _note(
+        f"  spread: judge used {record.judge_spread['distinct']} distinct scores, "
+        f"reviewer {record.human_spread['distinct']}"
+    )
+    _note(f"  wrote {written}")
     raise typer.Exit(EXIT_OK)
 
 
