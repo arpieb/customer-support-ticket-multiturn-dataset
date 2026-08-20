@@ -157,7 +157,8 @@ print('manifest:', f\"data/release/{r['run_id']}.manifest.json\")
 ```
 
 Corrupt a copy of the manifest — delete `seed`, or bump a discard count — and re-validate: it must fail and
-name the missing or inconsistent element (FR-028).
+name the missing or inconsistent element (FR-028). Altering the corpus after the fact fails too, on the
+checksum the manifest records (FR-025b).
 
 ---
 
@@ -206,6 +207,9 @@ The second must name both remedies: at least 50 records, or a tolerance of at le
 uv run ticket-dataset generate --config configs/medium.toml --seed 11 &
 sleep 30 && kill -INT %1
 ```
+
+A run also stops on its own when a declared budget is exhausted or a discard rate breaches its
+threshold mid-run. All three paths take the same route: stop, checkpoint, exit `3`.
 
 **Expect**: exit `3`; `data/release/` untouched — incomplete output never occupies the release path at all
 (FR-015), so there is nothing there to mistake for a finished corpus; a checkpoint and staging file under
@@ -256,8 +260,8 @@ than at the end, after both runs have paid for their calls (FR-014a).
 ## Scenario 6 — Concurrency does not compromise reproducibility (SC-013)
 
 ```bash
-uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --out data/release/c1.jsonl   # max_concurrency 1
-uv run ticket-dataset generate --config configs/smoke16.toml --seed 42 --out data/release/c16.jsonl # max_concurrency 16
+uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --out data/release/c1.jsonl    # concurrency 1
+uv run ticket-dataset generate --config configs/smoke16.toml --seed 42 --out data/release/c16.jsonl # concurrency 16
 ```
 
 **Expect**: identical composition and identical per-position seeded choices — same assigned metadata, same

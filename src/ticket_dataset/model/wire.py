@@ -6,6 +6,7 @@ pipeline supplies **provenance and metadata**. A model that could write ``record
 vocabulary. Never persisted.
 """
 
+from functools import cache
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -46,8 +47,14 @@ class JudgeVerdict(_Wire):
     justification: str = ""
 
 
+@cache
 def response_schema(model: type[BaseModel]) -> dict:
-    """The JSON Schema sent as ``output_config.format`` for a wire model."""
+    """The JSON Schema sent as ``output_config.format`` for a wire model.
+
+    Cached because it is otherwise rebuilt on every attempt — two schema generations per record,
+    which at release scale is 200,000 rebuilds of a constant. The schema depends only on the model
+    class, so there is nothing per-call to preserve.
+    """
     schema = model.model_json_schema()
     schema["additionalProperties"] = False
     return schema

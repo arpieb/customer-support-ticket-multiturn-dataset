@@ -51,7 +51,14 @@ def is_reserved_for_fiction(category: PIICategory, value: str) -> bool:
 
     if category is PIICategory.EMAIL:
         _, _, domain = candidate.rpartition("@")
-        return domain in RESERVED_DOMAINS or domain.endswith(RESERVED_TLDS)
+        if domain.endswith(RESERVED_TLDS):
+            return True
+        # The whole zone is reserved, not only the apex: nobody is issued a mailbox at
+        # sub.example.com either. Matched as a suffix on a dot so notexample.com does not slip
+        # through on a bare endswith.
+        return any(
+            domain == reserved or domain.endswith(f".{reserved}") for reserved in RESERVED_DOMAINS
+        )
 
     if category is PIICategory.PHONE:
         return bool(_FICTIONAL_PHONE.fullmatch(candidate.strip()))

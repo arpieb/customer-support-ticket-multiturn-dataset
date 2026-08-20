@@ -1,72 +1,184 @@
-# customer-support-ticket-multiturn-dataset
+# Customer Support Ticket Multi-Turn Dataset
 
-A generation pipeline for a synthetic, multi-turn customer support ticket dataset — and the
-dataset artifacts it produces.
+A reproducible generator for multi-turn customer support conversations: synthetic ticket records
+with conversation turns, ticket metadata, and the provenance needed to audit how any corpus was
+produced.
 
-> **Status: bootstrapping.** The repository currently contains project governance and the
-> Spec Kit scaffolding. The generation pipeline itself has not been implemented yet.
+Every run takes an explicit seed and a single configuration, writes a manifest recording how it
+happened, and passes its own output through a blocking privacy scan before anything reaches the
+release path. Those are not features bolted on — they are what
+[the project constitution](.specify/memory/constitution.md) requires of any dataset this
+repository publishes.
 
-## What this is
-
-The deliverable is a corpus of multi-turn conversations between customers and support agents,
-suitable for training and evaluating models on support tasks. Records are synthetic by
-construction — the project does not admit real personal data at any stage (see Principle IV
-below).
-
-Each released version ships with a manifest describing how it was generated and a datasheet
-describing its composition, method, known limitations, and intended use.
-
-## Governance
-
-Development is bound by the [project constitution](.specify/memory/constitution.md) (v1.0.0).
-Its five principles are non-negotiable for any change on a release path:
-
-| # | Principle | In short |
-|---|-----------|----------|
-| I | Schema-First Data Contracts | The record schema is declared, versioned, and committed before the code that reads or writes it |
-| II | Reproducible Generation | Every run takes an explicit seed and a serialized config, and writes a manifest that makes it replayable or auditable |
-| III | Provenance & Traceability | Every record traces to its run, source, and schema version; filtered records are accounted for by reason |
-| IV | Privacy by Construction | No real personal data enters `data/`, ever; a blocking automated PII scan gates the pipeline |
-| V | Validation Gates Before Release | Schema validation, PII scan, quality invariants, and sampled human review all gate a release |
-
-Read the constitution before contributing — it governs schema changes, release versioning, and
-what must be true before a dataset version ships.
-
-## Tech stack
-
-- **Python** `>=3.14`
-- **[uv](https://docs.astral.sh/uv/)** for dependency and environment management — `uv.lock` is
-  committed and must be updated in the same change as any dependency edit
-- **JSON Lines** as the dataset source of truth; other formats are exports generated from it
-
-## Getting started
+## Install
 
 ```bash
-uv sync          # create the environment from uv.lock
-uv run main.py   # stub entry point
+uv sync
+uv run ticket-dataset --help
 ```
 
-## Repository layout
+Python 3.14 or later. Dependencies are managed with `uv`; `uv.lock` is committed and updated in
+the same change as any dependency edit.
 
-```text
-.specify/
-  memory/constitution.md   # project constitution — the binding rules
-  templates/               # spec / plan / tasks templates, with constitution gates wired in
-.claude/skills/            # Spec Kit slash commands for coding agents
-data/                      # dataset artifacts (empty; not yet populated)
-main.py                    # stub entry point
+## Credentials
+
+Generating conversations calls a hosted model, so a run needs credentials:
+
+```bash
+export ANTHROPIC_API_KEY=...        # or:
+ant auth login                       # stores a profile the SDK reads automatically
+ant auth status                      # confirms which credential source is active
 ```
 
-Large dataset files are not committed directly. Where an artifact exceeds practical Git limits,
-the repository stores its generation config, manifest, and checksums instead.
+Credentials are an **access mechanism**, not a generation input. They never influence output and
+are never written to a manifest, report, checkpoint, or log. Anything else in the environment that
+could change *which* model serves a request — an alternate endpoint, a profile, a region — is
+recorded in the manifest, because it can change output and unrecorded state that changes output is
+exactly what reproducibility forbids.
 
-## Development workflow
+The privacy scan needs neither credentials nor a network. That is deliberate: the gate protecting
+the release path never depends on a remote service.
 
-Work proceeds through the Spec Kit flow, one feature at a time:
+## Your first corpus
 
-```text
-/speckit-specify → /speckit-clarify → /speckit-plan → /speckit-tasks → /speckit-implement
+`configs/smoke.toml` asks for 20 records — about 40 model calls.
+
+```bash
+uv run ticket-dataset generate --config configs/smoke.toml --seed 42
 ```
 
-The planning step evaluates a Constitution Check gate table before research and again after
-design; the tasks step carries constitution gate tasks for any release-path change.
+Check what it would do first, without spending anything:
+
+```bash
+uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --dry-run
+```
+
+On success you get three files in `data/release/`:
+
+| File | What it is |
+|---|---|
+| `smoke.jsonl` | The corpus, one JSON record per line |
+| `<run_id>.manifest.json` | How the run happened: seed, config, code revision, input hashes, counts, discards |
+| `<run_id>.report.json` | What the run found: privacy findings, composition, score distribution |
+
+The manifest is named by run identifier so that **a single record locates its own provenance** —
+take any record's `run_id`, look for `<run_id>.manifest.json` beside the corpus, and you have the
+seed and configuration that produced it.
+
+## Writing a configuration
+
+A configuration is TOML. The minimum is a record count and an output path; everything else has a
+documented default.
+
+```toml
+record_count = 500
+output_path = "data/release/my-corpus.jsonl"
+
+[turns]
+min = 4
+max = 10
+
+[composition.category]
+billing = 0.5
+technical = 0.3
+account = 0.2
+```
+
+Two things commonly surprise people, and both refuse **before** any model call rather than after:
+
+- **Proportions must sum to 1.0** for each dimension you specify.
+- **Small corpora cannot hold tight tolerances.** Assigning whole records bounds per-member error
+  at `100 / record_count`, so a 20-record corpus cannot honour the default ±2pp. The run refuses
+  and names both remedies — a larger corpus, or a wider tolerance. `configs/smoke.toml` widens it
+  to 10pp for exactly this reason.
+
+See `configs/` for worked examples, and
+[the feature specification](specs/001-ticket-generation-pipeline/spec.md) for every setting.
+
+## What the run guarantees
+
+- **Reproducible structure.** The same seed and configuration produce the same metadata, subdomain,
+  turn count, and timestamps at every position, whatever concurrency you run at. Conversation
+  *text* is model output and is not reproducible; the manifest records the model identity and
+  parameters so a run that cannot be replayed can still be audited.
+- **Nothing unscanned reaches the release path.** There is no code path that puts a file in
+  `data/release/` without the privacy gate having demonstrated its detector coverage for that run.
+- **Accounting that closes.** `records generated − discards = records written`, always, including
+  across an interruption and resume.
+
+## Interruptions
+
+A long run checkpoints as it goes. If it stops — you killed it, a budget ceiling was reached, or a
+discard rate breached its threshold — the partial corpus and its checkpoint stay in
+`data/interim/<run_id>/`, and nothing appears in `data/release/`.
+
+```bash
+uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume
+```
+
+Resuming refuses if the configuration, seed, prompt document, or rubric changed since the
+checkpoint — continuing under changed inputs would produce a corpus the manifest could not honestly
+describe. A changed **code revision** does not refuse; it is recorded as an additional manifest
+segment instead.
+
+## Privacy
+
+The scan runs on every structurally valid response, before it is judged, and blocks any record
+carrying an unreviewed finding.
+
+```bash
+uv run ticket-dataset privacy scan data/release/my-corpus.jsonl
+```
+
+Findings never reproduce the matched value. They carry a masked rendering — the domain of an email,
+the issuer range of a card, shape alone for a government identifier — which is what a reviewer
+adjudicates from. Values drawn from ranges standards reserve for fiction (`example.com`,
+`555-0100`–`555-0199`, the published test card numbers) are reported but never block: they cannot
+belong to anyone.
+
+For anything a mask cannot settle, blocked records are quarantined under `data/interim/<run_id>/`
+and can be approved in place:
+
+```bash
+uv run ticket-dataset privacy approve \
+  --from-quarantine data/interim/<run_id>/quarantine.jsonl \
+  --record-id <id> --field 'turns[3].content' \
+  --category EMAIL --reason "vendor sandbox address" --by "$(git config user.email)"
+```
+
+The approvals file stores a fingerprint, never the value — and the reason you type is itself
+scanned, so an approval cannot smuggle the value back in through free text.
+
+## Known limitations
+
+Stated here rather than discovered later:
+
+- **Postal addresses, bank accounts, non-US government identifiers, and person names are not
+  detected.** Offline detection of them is not reliable, so they are declared gaps that every
+  report restates. The corpus is synthetic by construction; the scan is a safety net confirming
+  that held, not the primary control.
+- **The coherence threshold is a default, not a validated one.** Nothing in this repository records
+  whether the judge was ever calibrated against human judgement. `sample-for-review` exports a
+  seeded sample to make that comparison cheap, but no requirement obliges it to happen.
+- **The judge shares the generating model by default.** Self-preference bias is real; the
+  mitigation is that the judge scores declared rubric criteria rather than choosing between
+  candidates. Pointing the roles at different models is a configuration change.
+- **Turn counts are uniform over the configured range**, which produces more long conversations
+  than real support traffic contains.
+
+## Development
+
+```bash
+uv run pytest          # the whole suite; no test makes a network call
+uv run ruff check .
+uv run ruff format .
+```
+
+The entire pipeline is exercised against a scripted fake model, so the suite is free, fast, and
+deterministic. `src/ticket_dataset/model/anthropic_client.py` is the only module that imports
+`anthropic`, and nothing under `tests/` imports it.
+
+The record contract is the Pydantic model in `src/ticket_dataset/schema/record.py`; it exports
+[`contracts/record.schema.json`](specs/001-ticket-generation-pipeline/contracts/record.schema.json)
+and a contract test fails on any drift, so a schema change cannot land without the published
+contract changing in the same commit.

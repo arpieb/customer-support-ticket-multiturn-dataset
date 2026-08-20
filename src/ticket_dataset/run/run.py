@@ -57,6 +57,21 @@ from ticket_dataset.schema.version import SCHEMA_VERSION
 
 STAGING_ROOT = Path("data/interim")
 
+#: Chunk size for hashing a corpus. Reading a 100,000-record artifact into memory to checksum it
+#: would undo the streaming the writer does (FR-012).
+_HASH_CHUNK = 1 << 20
+
+
+def _digest_of(path: Path) -> str:
+    """``sha256`` of a file, read in chunks rather than whole."""
+    from hashlib import sha256
+
+    digest = sha256()
+    with Path(path).open("rb") as handle:
+        while chunk := handle.read(_HASH_CHUNK):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 
 @dataclass(slots=True)
 class RunResult:
@@ -543,24 +558,35 @@ class GenerationRun:
         }
 
     def _achieved_composition(self, path: Path) -> dict[str, dict[str, float]]:
-        """What the written corpus actually contains."""
+        """What the written corpus actually contains.
+
+        Streamed line by line and counted as it goes. Reading the corpus into a list would make
+        peak memory scale with corpus size — the exact property FR-012 forbids, and one that only
+        shows up at the scale where it matters.
+        """
         import json as _json
 
-        if not Path(path).exists():
+        path = Path(path)
+        if not path.exists():
             return {}
-        records = [
-            _json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()
-        ]
-        if not records:
+        dimensions = ("category", "priority", "channel", "resolution_status")
+        counters: dict[str, Counter[str]] = {dimension: Counter() for dimension in dimensions}
+        total = 0
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                metadata = _json.loads(line)["metadata"]
+                total += 1
+                for dimension in dimensions:
+                    counters[dimension][metadata[dimension]] += 1
+        if total == 0:
             return {}
         return {
             dimension: {
-                member: count / len(records)
-                for member, count in sorted(
-                    Counter(record["metadata"][dimension] for record in records).items()
-                )
+                member: count / total for member, count in sorted(counters[dimension].items())
             }
-            for dimension in ("category", "priority", "channel", "resolution_status")
+            for dimension in dimensions
         }
 
     def _build_manifest(
@@ -574,11 +600,9 @@ class GenerationRun:
         completed_at: datetime,
         artifact: Path | None,
     ) -> RunManifest:
-        from hashlib import sha256
-
         revision = capture_revision()
         corpus = artifact if artifact else self.staging_path
-        digest = sha256(corpus.read_bytes()).hexdigest() if corpus.exists() else ""
+        digest = _digest_of(corpus) if corpus.exists() else ""
 
         segment = Segment(
             code_revision=revision.as_dict(),

@@ -51,8 +51,10 @@ model credentials; the privacy gate is offline and deterministic by construction
 stable contract; the CLI carries no logic of its own.
 
 **Performance Goals**: 100,000 records in a single run without exhausting memory or requiring manual
-intervention (SC-001). Memory is O(concurrency), not O(corpus): per-slot state, a reorder buffer bounded by
-`max_concurrency`, and two digest sets (~3 MB each at 100k). Throughput is provider-bound; concurrency and
+intervention (SC-001). *Retained* memory is O(concurrency) rather than O(corpus): per-slot state, a reorder
+buffer bounded by `max_concurrency`, and two digest sets (~3 MB each at 100k). Allocation *churn* is
+proportional to work done and always will be — a run producing ten times the records encodes ten times the
+JSON — so the memory test measures what the run still holds when it finishes, not peak allocation. Throughput is provider-bound; concurrency and
 request rate are operator-facing knobs (FR-012a, FR-012e).
 
 **Constraints**: Two model calls per record, so a release-scale run is ~200,000 calls before retries — cost
