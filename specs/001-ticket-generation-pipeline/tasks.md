@@ -120,7 +120,7 @@ exchange — no manifest, privacy, or composition machinery required.
 - [ ] T040 [US1] Implement prompt assembly in `src/ticket_dataset/generation/prompts.py` with a **byte-stable system prefix** (domain document, rubric) and per-slot user content (assignment, turn count, language, subdomain), so the prefix caches across a run (contracts/model-io.md)
 - [ ] T041 [US1] Implement `AnthropicModelClient` in `src/ticket_dataset/model/anthropic_client.py` — the only module importing `anthropic` — with `output_config.format`, adaptive thinking, configured effort, refusal fallback, and the served model id surfaced on every response (FR-027a, research R1)
 - [ ] T042 [US1] Implement generation and structural validation in `src/ticket_dataset/generation/generator.py`: parse, validate against `GeneratedConversation`, and check turn count, customer-first alternation, and non-empty content, discarding under the named reason rather than coercing (FR-009, FR-009b, FR-009d)
-- [ ] T043 [P] [US1] Add unit tests in `tests/unit/test_structural_validation.py` for each rejection path — unparseable, wrong turn count, agent-first, non-alternating, empty turn, truncated response — each mapping to its own `DiscardReason` (FR-009b, FR-009m)
+- [ ] T043 [P] [US1] Add unit tests in `tests/unit/test_structural_validation.py` for each rejection path — unparseable, wrong turn count, agent-first, non-alternating, empty turn, truncated response — asserting each maps to its own `DiscardReason`, and specifically that a turn-count violation is accounted under `turn_count_out_of_range` rather than `structural_invalid` (FR-009b, FR-009m)
 - [ ] T044 [US1] Implement coherence judging in `src/ticket_dataset/generation/judge.py`, computing the score as the **weighted mean of per-criterion scores** using the rubric's declared weights rather than any holistic number the model returns (FR-009f, FR-009p)
 - [ ] T045 [P] [US1] Add unit tests in `tests/unit/test_judge.py` asserting the weighted mean is computed from criteria, that a below-threshold score discards under `coherence_below_threshold`, and that an unscorable record discards under `unjudgeable` after the configured attempts (FR-009h, FR-009l)
 - [ ] T046 [US1] Implement the concurrent pipeline in `src/ticket_dataset/generation/pipeline.py`: bounded `asyncio` worker pool, slot-level retry with the single attempts knob, and the consecutive-failure circuit breaker (FR-012a, FR-009o, FR-012d, spec Edge Cases)
@@ -169,7 +169,7 @@ blocked, nothing reaches the release path, and findings name the offending recor
 - [ ] T069 [US2] Implement the quarantine writer in `src/ticket_dataset/privacy/quarantine.py`, appending privacy-discarded records under `data/interim/<run_id>/` and never to the release path (FR-021b)
 - [ ] T070 [US2] Wire the scan into `src/ticket_dataset/generation/pipeline.py` **before the judge call**, so every structurally valid response is scanned and no judging call is spent on a record about to be discarded for privacy (FR-016, FR-016a, FR-021)
 - [ ] T071 [US2] Add the atomic staging→release move to `src/ticket_dataset/run/writer.py`, re-verifying the destination claim immediately before it, and guard it so it refuses unless the detector registry passed its floor probe for this run — no code path may place output in `data/release/` that the privacy gate has not examined (FR-014a, FR-015, FR-016, FR-018a, Constitution IV)
-- [ ] T072 [US2] Implement `privacy scan` and `privacy approve` in `src/ticket_dataset/cli/main.py`, including `--from-quarantine` and `--by`, and a report enumerating covered **and** uncovered identifier types (FR-019, FR-022a, contracts/cli.md)
+- [ ] T072 [US2] Implement `privacy scan` and `privacy approve` in `src/ticket_dataset/cli/main.py`, including `--from-quarantine` and `--by`, and a report carrying **how many records and fields were examined**, the field set scanned, the detectors that ran, and covered **and** uncovered identifier types — the counts are what distinguish a clean result from a scan that examined nothing (FR-019, FR-022a, FR-023, FR-023a, contracts/cli.md)
 - [ ] T073 [P] [US2] Add `configs/planted-pii.toml` and a seeded-defect prompt document under `tests/fixtures/` that deliberately elicits identifier-shaped content
 - [ ] T074 [P] [US2] Add an integration test in `tests/integration/test_privacy_blocks.py`: flagged records discarded and quarantined, the 0.5% threshold breached, run fails, **nothing in `data/release/`**, findings carry masked renderings only (SC-004, FR-020, FR-021a)
 - [ ] T075 [P] [US2] Add an integration test in `tests/integration/test_privacy_exception.py` asserting an approved finding stops blocking, stays visible in the report as an approved exception, and leaves only a fingerprint on disk (FR-022)
@@ -190,19 +190,20 @@ input hashes, and counts, that counts reconcile exactly, and that every record r
 - [ ] T078 [US3] Implement manifest construction in `src/ticket_dataset/run/manifest.py`, written beside the artifact as `<run_id>.manifest.json`, carrying start/end times, both model identities, fallback tallies, per-segment code revisions, budget spend, output filename and checksum (FR-025, FR-025b, FR-027, FR-029a, FR-015f)
 - [ ] T079 [US3] Implement `validate_manifest()` in `src/ticket_dataset/run/manifest.py` checking contract conformance **and** the reconciliation `records_generated - discards == records_written`, naming every discrepancy (FR-026, FR-026a, FR-028)
 - [ ] T080 [P] [US3] Add unit tests in `tests/unit/test_manifest_validation.py` with fixture manifests: missing element, discard reason outside the closed set, and counts that do not reconcile though every field is present (FR-026b, FR-028)
-- [ ] T081 [US3] Implement `RunReport` in `src/ticket_dataset/run/report.py` — one object driving the JSON output, the human rendering, the `RunOutcome`, and the exit status, with the score histogram in fixed 0.05 buckets (FR-035, FR-036, FR-036a, FR-036b, FR-038, research R9)
-- [ ] T082 [US3] Implement mid-run threshold evaluation in `src/ticket_dataset/run/thresholds.py`, firing once `max(1000, 5% of record_count)` records exist and stopping-and-checkpointing on breach; composition stays end-only (FR-037, FR-037a)
-- [ ] T083 [P] [US3] Add unit tests in `tests/unit/test_thresholds.py` asserting no evaluation before the minimum sample, that an early discard cluster does not fail a run that recovers, and that a sustained breach stops it (FR-037)
-- [ ] T084 [US3] Implement checkpointing in `src/ticket_dataset/run/checkpoint.py`: periodic durable writes, `bytes_written` truncation resume, input-fingerprint comparison, candidate discovery, and `CheckpointCorruptError` preserving partial output (FR-015a, FR-015e, FR-015g, FR-015h, research R6)
-- [ ] T085 [P] [US3] Add unit tests in `tests/unit/test_checkpoint.py` covering truncation recovery from a half-written line, fingerprint mismatch refusal, ambiguous candidates, and an unreadable checkpoint leaving staging intact (FR-015e, FR-015g, FR-015h)
-- [ ] T086 [P] [US3] Implement run budgets in `src/ticket_dataset/run/budget.py` — wall-clock and model-call ceilings that stop and checkpoint rather than fail (FR-012f)
-- [ ] T087 [P] [US3] Implement retention in `src/ticket_dataset/run/retention.py`: drop staging and checkpoint on success, keep report and quarantine, keep everything on failure or interruption (FR-015i)
-- [ ] T088 [US3] Implement `GenerationRun.resume()` in `src/ticket_dataset/run/run.py`, adding a manifest segment per resume and reconciling tallies into one manifest (FR-015b, FR-015c, FR-015d, FR-015f)
-- [ ] T089 [US3] Implement `validate-manifest` in `src/ticket_dataset/cli/main.py` (contracts/cli.md)
-- [ ] T090 [P] [US3] Add `configs/medium.toml`: large enough that a run can be interrupted mid-flight, with a `checkpoint_interval` small enough that a kill lands between checkpoints (T091 and T092 depend on it)
-- [ ] T091 [P] [US3] Add an integration test in `tests/integration/test_interrupt_resume.py`: kill mid-run, resume, assert no regenerated records, no duplicate identifiers, dense positions, one reconciled manifest, and `resumed_count: 1` (SC-005, SC-012)
-- [ ] T092 [P] [US3] Add an integration test in `tests/integration/test_resume_refusals.py`: a changed prompt document refuses, while a changed **code revision succeeds** and adds a segment (FR-015e, FR-015f)
-- [ ] T093 [P] [US3] Add an integration test in `tests/integration/test_traceability.py` locating a manifest from a single record's `run_id` alone (FR-029, FR-029a, SC-006, SC-007)
+- [ ] T081 [P] [US3] Add a contract test in `tests/contract/test_manifest_schema.py` asserting the `RunManifest` model's exported schema equals the committed `contracts/manifest.schema.json` under the same normalization T013 defines. The record contract is protected against drift by T014 and the manifest contract is not, which leaves the artifact that carries all the provenance free to diverge from its published shape (FR-028, Constitution II)
+- [ ] T082 [US3] Implement `RunReport` in `src/ticket_dataset/run/report.py` — one object driving the JSON output, the human rendering, the `RunOutcome`, and the exit status, with the score histogram in fixed 0.05 buckets (FR-035, FR-036, FR-036a, FR-036b, FR-038, research R9)
+- [ ] T083 [US3] Implement mid-run threshold evaluation in `src/ticket_dataset/run/thresholds.py`, firing once `max(1000, 5% of record_count)` records exist and stopping-and-checkpointing on breach; composition stays end-only (FR-037, FR-037a)
+- [ ] T084 [P] [US3] Add unit tests in `tests/unit/test_thresholds.py` asserting no evaluation before the minimum sample, that an early discard cluster does not fail a run that recovers, and that a sustained breach stops it (FR-037)
+- [ ] T085 [US3] Implement checkpointing in `src/ticket_dataset/run/checkpoint.py`: periodic durable writes, `bytes_written` truncation resume, input-fingerprint comparison, candidate discovery, and `CheckpointCorruptError` preserving partial output (FR-015a, FR-015e, FR-015g, FR-015h, research R6)
+- [ ] T086 [P] [US3] Add unit tests in `tests/unit/test_checkpoint.py` covering truncation recovery from a half-written line, fingerprint mismatch refusal, ambiguous candidates, and an unreadable checkpoint leaving staging intact (FR-015e, FR-015g, FR-015h)
+- [ ] T087 [P] [US3] Implement run budgets in `src/ticket_dataset/run/budget.py` — wall-clock and model-call ceilings that stop and checkpoint rather than fail (FR-012f)
+- [ ] T088 [P] [US3] Implement retention in `src/ticket_dataset/run/retention.py`: drop staging and checkpoint on success, keep report and quarantine, keep everything on failure or interruption (FR-015i)
+- [ ] T089 [US3] Implement `GenerationRun.resume()` in `src/ticket_dataset/run/run.py`, adding a manifest segment per resume and reconciling tallies into one manifest (FR-015b, FR-015c, FR-015d, FR-015f)
+- [ ] T090 [US3] Implement `validate-manifest` in `src/ticket_dataset/cli/main.py` (contracts/cli.md)
+- [ ] T091 [P] [US3] Add `configs/medium.toml`: large enough that a run can be interrupted mid-flight, with a `checkpoint_interval` small enough that a kill lands between checkpoints (T092 and T093 depend on it)
+- [ ] T092 [P] [US3] Add an integration test in `tests/integration/test_interrupt_resume.py`: kill mid-run, resume, assert no regenerated records, no duplicate identifiers, dense positions, one reconciled manifest, and `resumed_count: 1` (SC-005, SC-012)
+- [ ] T093 [P] [US3] Add an integration test in `tests/integration/test_resume_refusals.py`: a changed prompt document refuses, while a changed **code revision succeeds** and adds a segment (FR-015e, FR-015f)
+- [ ] T094 [P] [US3] Add an integration test in `tests/integration/test_traceability.py` locating a manifest from a single record's `run_id` alone (FR-029, FR-029a, SC-006, SC-007)
 
 ---
 
@@ -213,36 +214,36 @@ input hashes, and counts, that counts reconcile exactly, and that every record r
 **Independent test**: Generate with a specified composition; confirm every member of every dimension lands
 within ±2pp and that requested, assigned, and achieved distributions are all reported.
 
-- [ ] T094 [US4] Implement per-member tolerance evaluation in `src/ticket_dataset/planning/tolerance.py`, returning one `Breach` per offending member with dimension, member, requested, achieved, and drift (FR-031)
-- [ ] T095 [P] [US4] Add unit tests in `tests/unit/test_tolerance.py` asserting the worst member decides, that a failure names the member, and that an aggregate-passing but member-failing distribution fails (FR-031)
-- [ ] T096 [US4] Record all three distributions — requested, assigned, achieved — in the manifest and report, so apportionment error and discard-induced drift are distinguishable (FR-031a)
-- [ ] T097 [US4] Wire composition refusals into `load_config()`: proportions not summing, unknown member, a proportion too small to round, and a tolerance unachievable at the corpus size (FR-031b, FR-032)
-- [ ] T098 [P] [US4] Add `configs/billing-heavy.toml` (500 records), `configs/bad-composition.toml` (proportions summing to 1.4), and `configs/tight-tolerance.toml` (20 records at 2pp)
-- [ ] T099 [P] [US4] Add an integration test in `tests/integration/test_composition.py` asserting per-member drift within ±2pp, all three distributions reported, and both refusal configs exiting `2` before any model call (SC-008, FR-032)
+- [ ] T095 [US4] Implement per-member tolerance evaluation in `src/ticket_dataset/planning/tolerance.py`, returning one `Breach` per offending member with dimension, member, requested, achieved, and drift (FR-031)
+- [ ] T096 [P] [US4] Add unit tests in `tests/unit/test_tolerance.py` asserting the worst member decides, that a failure names the member, and that an aggregate-passing but member-failing distribution fails (FR-031)
+- [ ] T097 [US4] Record all three distributions — requested, assigned, achieved — in the manifest and report, so apportionment error and discard-induced drift are distinguishable (FR-031a)
+- [ ] T098 [US4] Wire composition refusals into `load_config()`: proportions not summing, unknown member, a proportion too small to round, and a tolerance unachievable at the corpus size (FR-031b, FR-032)
+- [ ] T099 [P] [US4] Add `configs/billing-heavy.toml` (500 records), `configs/bad-composition.toml` (proportions summing to 1.4), and `configs/tight-tolerance.toml` (20 records at 2pp)
+- [ ] T100 [P] [US4] Add an integration test in `tests/integration/test_composition.py` asserting per-member drift within ±2pp, all three distributions reported, and both refusal configs exiting `2` before any model call (SC-008, FR-032)
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T100 [P] Implement `sample-for-review` in `src/ticket_dataset/cli/main.py` exporting a seeded random sample with scores, so SC-011 calibration is cheap (contracts/cli.md)
-- [ ] T101 [P] Implement `schema export` in `src/ticket_dataset/cli/main.py` and wire the drift check from T014 into CI (Constitution I)
-- [ ] T102 [P] Re-export the public surface from `src/ticket_dataset/__init__.py` exactly as [contracts/python-api.md](./contracts/python-api.md) specifies
-- [ ] T103 [P] Add a contract test in `tests/contract/test_public_api.py` asserting every documented name is importable and no undocumented name is exported
-- [ ] T104 [P] Add `configs/release.toml`: 100,000 records with a declared budget (`max_runtime`, `max_model_calls`) — the release acceptance run, never part of CI
-- [ ] T105 [P] Add a memory-shape test in `tests/integration/test_memory_shape.py` generating 10,000 records against `FakeModelClient` and asserting peak memory does not scale with corpus size (SC-001, FR-012)
-- [ ] T106 [P] Write `README.md` covering installation, credentials, writing a configuration, and one worked run — the documentation SC-010's claim rests on (SC-010)
-- [ ] T107 Run every quickstart scenario end to end and reconcile any divergence between [quickstart.md](./quickstart.md) and actual behavior
-- [ ] T108 [P] Add `ruff` lint/format and the full test suite to CI, including the offline-install guard and the schema drift check
+- [ ] T101 [P] Implement `sample-for-review` in `src/ticket_dataset/cli/main.py` exporting a seeded random sample with scores, so SC-011 calibration is cheap (contracts/cli.md)
+- [ ] T102 [P] Implement `schema export` in `src/ticket_dataset/cli/main.py` and wire the drift check from T014 into CI (Constitution I)
+- [ ] T103 [P] Re-export the public surface from `src/ticket_dataset/__init__.py` exactly as [contracts/python-api.md](./contracts/python-api.md) specifies
+- [ ] T104 [P] Add a contract test in `tests/contract/test_public_api.py` asserting every documented name is importable and no undocumented name is exported
+- [ ] T105 [P] Add `configs/release.toml`: 100,000 records with a declared budget (`max_runtime`, `max_model_calls`) — the release acceptance run, never part of CI
+- [ ] T106 [P] Add a memory-shape test in `tests/integration/test_memory_shape.py` generating 10,000 records against `FakeModelClient` and asserting peak memory does not scale with corpus size (SC-001, FR-012)
+- [ ] T107 [P] Write `README.md` covering installation, credentials, writing a configuration, and one worked run — the documentation SC-010's claim rests on (SC-010)
+- [ ] T108 Run every quickstart scenario end to end and reconcile any divergence between [quickstart.md](./quickstart.md) and actual behavior
+- [ ] T109 [P] Add `ruff` lint/format and the full test suite to CI, including the offline-install guard and the schema drift check
 
 ### Constitution Gates (required for any release-path change)
 
-- [ ] T109 Schema validation over 100% of produced records, verified by the generator's own pre-write check (Constitution I, V; FR-007, SC-002)
-- [ ] T110 Blocking automated PII scan wired into the pipeline ahead of any write, with demonstrated floor coverage (Constitution IV, V; FR-016, FR-016a, FR-018a)
-- [ ] T111 Run manifest emits seed, serialized config, code revision, input hashes, record counts, and discard accounting by reason, reconciling exactly (Constitution II, III; FR-025, FR-026)
-- [ ] T112 Quality invariants enforced: turn ordering, customer-first alternation, no empty or truncated turns, duplicate reporting (Constitution V; FR-009, FR-034)
-- [ ] T113 Contract and edge-case tests present for every data-transforming module before it produces a released artifact (Constitution V)
-- [ ] T114 Documented random-sample human review recorded before any release, and the coherence judge calibrated at least once against human judgement (Constitution V; SC-011) — **not enforced by code**: no requirement obliges a calibration record to exist (checklist CHK063), so this gate is a human obligation at release time
-- [ ] T115 Dataset version bump and datasheet update covering composition, generation method, model mix, known limitations, intended use, and **every active privacy exception** (Constitution: Development Workflow; FR-022a)
+- [ ] T110 Schema validation over 100% of produced records, verified by the generator's own pre-write check (Constitution I, V; FR-007, SC-002)
+- [ ] T111 Blocking automated PII scan wired into the pipeline ahead of any write, with demonstrated floor coverage (Constitution IV, V; FR-016, FR-016a, FR-018a)
+- [ ] T112 Run manifest emits seed, serialized config, code revision, input hashes, record counts, and discard accounting by reason, reconciling exactly (Constitution II, III; FR-025, FR-026)
+- [ ] T113 Quality invariants enforced: turn ordering, customer-first alternation, no empty or truncated turns, duplicate reporting (Constitution V; FR-009, FR-034)
+- [ ] T114 Contract and edge-case tests present for every data-transforming module before it produces a released artifact (Constitution V)
+- [ ] T115 Documented random-sample human review recorded before any release, and the coherence judge calibrated at least once against human judgement (Constitution V; SC-011) — **not enforced by code**: no requirement obliges a calibration record to exist (checklist CHK063), so this gate is a human obligation at release time
+- [ ] T116 Dataset version bump and datasheet update covering composition, generation method, model mix, known limitations, intended use, and **every active privacy exception** (Constitution: Development Workflow; FR-022a)
 
 ---
 
@@ -279,15 +280,15 @@ within ±2pp and that requested, assigned, and achieved distributions are all re
 - **Phase 2**: T009, T010, T015, T017, T019, T021, T023, T025, T027, T030–T033 parallel within their groups
 - **Phase 3**: T034 and T035 parallel; T037, T039, T043, T045, T048, T049, T050, T053 parallel; all four US1 tests (T054–T057) parallel
 - **Phase 4**: T058, T059 parallel; T062, T063, T064, T066, T068, T073 parallel; T074, T075 parallel
-- **Phase 5**: T077, T080, T083, T085, T086, T087, T090 parallel; T091, T092, T093 parallel
-- **Phase 6**: T095, T098, T099 parallel
-- **Phase 7**: T100–T106, T108 all parallel
+- **Phase 5**: T077, T080, T081, T084, T086, T087, T088, T091 parallel; T092, T093, T094 parallel
+- **Phase 6**: T096, T099, T100 parallel
+- **Phase 7**: T101–T107, T109 all parallel
 
 ### Cross-Story Parallelism
 
-Once Phase 2 completes, US2's privacy modules (T058–T069), US3's provenance modules (T076–T087), and US4's
-tolerance work (T094–T095) are independent of US1's generation path and of each other. Only their
-integration points — T070 (scan into the pipeline), T071 (the release move), T088 (resume), and T096
+Once Phase 2 completes, US2's privacy modules (T058–T069), US3's provenance modules (T076–T088), and US4's
+tolerance work (T095–T096) are independent of US1's generation path and of each other. Only their
+integration points — T070 (scan into the pipeline), T071 (the release move), T089 (resume), and T097
 (three-way composition) — need the pipeline to exist.
 
 ---

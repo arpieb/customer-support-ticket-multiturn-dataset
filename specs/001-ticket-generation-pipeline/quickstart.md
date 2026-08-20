@@ -94,7 +94,7 @@ detector, and a masked rendering, never the matched value, and cites the quarant
 
 ```bash
 ls data/release/                     # planted-pii.jsonl absent
-uv run python -m json.tool data/interim/<run_id>/report.json | head -40
+uv run python -m json.tool data/interim/<run_id>/report.json | head -40   # named by run id (FR-036a)
 ```
 
 Then approve one finding and confirm it stops blocking while staying visible:

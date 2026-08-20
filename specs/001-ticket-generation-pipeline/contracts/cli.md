@@ -18,7 +18,7 @@ Produce a corpus. The primary command.
 | `--config PATH` | path | — | **Required.** The single serialized configuration (FR-008) |
 | `--seed INT` | int | — | **Required.** Explicit; there is no implicit or time-derived seed (Principle II) |
 | `--out PATH` | path | from config | Overrides `output_path`. Must be under `data/release/` and must not exist. There is deliberately **no** overwrite option — the run refuses and names the path, and removing a release artifact stays a manual act (FR-013, FR-014) |
-| `--report PATH` | path | see below | Overrides the report location. By default the JSON report is written beside the artifact on success and into `data/interim/<run_id>/` otherwise, named by run identifier in both cases (FR-036a) |
+| `--report PATH` | path | see below | Overrides the report location. By default the JSON report is `<run_id>.report.json` beside the artifact on success, and `data/interim/<run_id>/report.json` otherwise — locatable from a run identifier either way (FR-036a) |
 | `--resume` | flag | off | Resume a checkpointed run. The candidate is found by matching input fingerprints; several matches refuse and list them (FR-015h) |
 | `--run-id ID` | str | — | Names the run to resume when fingerprint matching is ambiguous (FR-015h) |
 | `--dry-run` | flag | off | Validate config, apportion composition, assert the detector floor, and report the plan — no model calls |

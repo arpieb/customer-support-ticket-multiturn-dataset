@@ -211,7 +211,7 @@ stated tolerance.
   inputs would make two legitimate reruns indistinguishable and would give two separate corpora the same
   record identifiers.
 - **FR-003b**: The record identifier MUST be derived deterministically from the run identifier and the
-  record's position in the run. Uniqueness within a run is then structural rather than checked, and
+  record's `record_index`. Uniqueness within a run is then structural rather than checked, and
   uniqueness across runs follows from FR-003a. This is what lets a resumed run satisfy FR-015b by
   construction: regenerating a position yields the identifier that position always had, so no identifier
   can be issued twice and none can be skipped.
@@ -274,7 +274,11 @@ stated tolerance.
   a single turn is a statement, and no coherence rubric can meaningfully score one.
 - **FR-009b**: The generator MUST structurally validate every model response before accepting it as a
   record, and MUST discard and account for any response that is unparseable, structurally invalid, or
-  violates the ordering, alternation, non-emptiness, or turn-count constraints in FR-009 and FR-009d.
+  violates the ordering, alternation, non-emptiness, or turn-count constraints in FR-009 and FR-009d. A
+  **turn-count violation is always accounted under the turn-count reason**, never under the general
+  structural one: the two failures have different causes — a length the model would not honor, versus output
+  it could not form — and FR-026's accounting is only useful if each response lands under one reason
+  predictably.
 - **FR-009f**: Every structurally valid record MUST additionally be scored for coherence by a model-based
   judge, against a committed, versioned rubric.
 - **FR-009g**: The coherence rubric MUST be a committed artifact whose identifying hash is recorded in the
@@ -327,7 +331,7 @@ stated tolerance.
   model sampling is not reproducible in general; the manifest MUST therefore record the model identity, its
   parameters, and any sampling seed, so that a run that cannot be replayed can still be audited
   (Constitution Principle II).
-- **FR-010a**: **Equivalent** means: for every record position present in both corpora, the seeded choices
+- **FR-010a**: **Equivalent** means: for every `record_index` present in both corpora, the seeded choices
   match exactly — assigned category, priority, channel, resolution status, subdomain, turn count, and ticket
   timestamps — and each achieved composition lies within the configured tolerance of the other. Turn text is
   excluded, and so is *which* positions are present: FR-009q makes survival through the coherence gate
@@ -352,7 +356,7 @@ stated tolerance.
   assigned before the record is dispatched. The scenario the model elaborates within an assigned subdomain
   is model output, not a seeded choice, and is reproducible only in the structural sense FR-010 states. They MUST NOT be drawn from a shared sequential stream, so that output does not
   depend on the order in which concurrent work completes.
-- **FR-012c**: Records MUST be written in **ascending record position**, independent of completion order, so
+- **FR-012c**: Records MUST be written in **ascending `record_index`**, independent of completion order, so
   that two runs with the same seed and configuration produce corpora comparable record by record. A record's
   serialization MUST also be deterministic — identical record content yields identical bytes — so that
   comparison is a diff rather than a parse. This does **not** make two corpora byte-comparable as files: turn
@@ -591,9 +595,10 @@ stated tolerance.
   privacy findings, detectors run, uncovered categories, and achieved composition.
 - **FR-036**: The report MUST be available in a machine-readable form so automation can act on it without
   parsing prose, and the run MUST signal success or failure unambiguously.
-- **FR-036a**: The report MUST be **JSON**, written beside the artifact on success and into the run's
-  intermediate directory otherwise, named by the run identifier in both cases. A report whose location
-  depends on how the run ended would be hardest to find exactly when it is most needed.
+- **FR-036a**: The report MUST be **JSON**, and MUST be locatable from a run identifier alone. On success it
+  is written beside the artifact as `<run_id>.report.json`; otherwise it is written as `report.json` inside
+  the run's intermediate directory, which already carries the identifier. A report findable only if you
+  already know how the run ended would be hardest to reach exactly when it is most needed.
 - **FR-036b**: A run's outcome MUST be one of four distinguishable states, because they call for different
   responses and a binary cannot express them: **completed** (the artifact reached the release path),
   **refused** (nothing was generated and nothing was spent), **failed** (output exists but did not qualify,

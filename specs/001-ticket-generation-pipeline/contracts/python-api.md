@@ -139,8 +139,8 @@ result or a real identifier (FR-017a). Repeated failures stop the run.
 
 `scan_record` examines the record's model-derived text — every turn's content and the elaborated scenario
 (FR-023a) — and returns findings carrying record ID, field, category, detector, blocking status, and a
-masked rendering, never the matched value (FR-020, FR-020a). It reports the fields it examined, so a clean
-result is distinguishable from a scan that examined nothing (FR-023). Pipeline-assigned fields and the
+masked rendering, never the matched value (FR-020, FR-020a). It reports **how many records and fields it examined**, alongside the field set and the detectors that ran,
+so a clean result is distinguishable from a scan that examined nothing (FR-023, FR-023a). Pipeline-assigned fields and the
 subdomain are out of scope by requirement, not by omission.
 
 ```python

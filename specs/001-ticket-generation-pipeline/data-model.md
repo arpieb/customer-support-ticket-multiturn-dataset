@@ -174,7 +174,7 @@ Not persisted in the corpus; the unit of work the pipeline schedules. Every fiel
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `position` | `int` | `[0, record_count)`; becomes `record_index` |
+| `position` | `int` | `[0, record_count)`; the slot's position in the run, which becomes the record's `record_index`. "Slot position" is planning vocabulary; `record_index` is the contract field |
 | `assignment` | `TicketMetadata` fields | The four apportioned dimensions plus derived timestamps |
 | `turn_count` | `int` | Drawn **uniformly** from the configured range with the slot's own generator (FR-009d) |
 | `created_at` / `resolved_at` | `datetime` | Seeded draws from the configured window and duration bounds (FR-006a) — assigned before dispatch like every other seeded choice |
