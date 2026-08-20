@@ -16,10 +16,10 @@ class ModelClient(Protocol):
     async def complete_json(
         self,
         *,
-        role: ModelRole,          # GENERATOR | JUDGE — selects the configured ModelSpec
+        role: ModelRole,  # GENERATOR | JUDGE — selects the configured ModelSpec
         system: str,
         user: str,
-        schema: dict,             # JSON Schema constraining the response
+        schema: dict,  # JSON Schema constraining the response
     ) -> ModelResponse: ...
 ```
 

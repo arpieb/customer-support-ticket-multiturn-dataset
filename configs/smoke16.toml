@@ -1,0 +1,36 @@
+# smoke.toml at concurrency 16 — the SC-013 comparison pair. Identical in every other respect.
+#
+# The tolerance is widened deliberately. Assigning whole records bounds per-member error at
+# 100/20 = 5pp before any discard, so the 2pp default is arithmetically unachievable here and
+# the run would be refused before generating (FR-031b). Widening it on purpose is exactly what
+# that requirement asks of an operator.
+record_count = 20
+output_path = "data/release/smoke16.jsonl"
+composition_tolerance_pp = 10.0
+max_concurrency = 16
+
+[turns]
+min = 4
+max = 8
+
+[time_window]
+start = 2026-01-01
+end = 2026-01-31
+
+# A 20-record corpus cannot represent the default distribution's smallest shares, so the mix is
+# flattened to members that round to at least one record.
+[composition.category]
+billing = 0.5
+technical = 0.5
+
+[composition.priority]
+normal = 0.5
+high = 0.5
+
+[composition.channel]
+email = 0.5
+chat = 0.5
+
+[composition.resolution_status]
+resolved = 0.75
+escalated = 0.25
