@@ -89,16 +89,23 @@ class LiteLLMModelClient(ModelClient):
         )
 
     @staticmethod
-    def supports_structured_output(model_id: str) -> bool:
+    def supports_structured_output(model_id: str) -> bool | None:
         """Whether this model can be constrained to a JSON schema.
 
-        Checked before generating rather than discovered on the first response: a model that
-        cannot honour the schema would turn every record into a structural discard.
+        Three answers, not two. ``True`` and ``False`` come from litellm's model metadata;
+        ``None`` means it has no entry for this model, which is not the same as "cannot".
+
+        The distinction matters because litellm's own ``supports_response_schema`` helper collapses
+        unknown into ``False``, and self-hosted providers are routinely unknown to it — an Ollama
+        model reports no metadata while Ollama itself has supported structured output since 0.5.
+        Refusing on unknown would make this gate a check on litellm's metadata completeness rather
+        than on the model, and would lock out exactly the providers a vendor-neutral design exists
+        to allow.
         """
         try:
-            return bool(litellm.supports_response_schema(model=model_id))
-        except Exception:  # noqa: BLE001 - an unknown model is simply unverifiable here
-            return False
+            return litellm.get_model_info(model_id).get("supports_response_schema")
+        except Exception:  # noqa: BLE001 - no entry for this model; unknown, not unsupported
+            return None
 
     async def complete_json(
         self,

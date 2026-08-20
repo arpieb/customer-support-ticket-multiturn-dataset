@@ -237,7 +237,8 @@ def test_a_model_that_cannot_be_constrained_refuses_the_run(tmp_path) -> None:
 
     class PickyClient(FakeModelClient):
         @staticmethod
-        def supports_structured_output(model_id: str) -> bool:
+        def supports_structured_output(model_id: str) -> bool | None:
+            # An explicit no, not a metadata gap — only the former refuses.
             return "good" in model_id
 
     config = GenerationConfig(
@@ -257,3 +258,40 @@ def test_a_client_that_does_not_advertise_capability_is_not_second_guessed(tmp_p
     config = GenerationConfig(record_count=60, output_path=tmp_path / "release" / "corpus.jsonl")
     slots = GenerationRun(config=config, seed=1, model_client=FakeModelClient()).prepare()
     assert len(slots) == 60
+
+
+def test_a_model_unknown_to_the_provider_layer_is_not_refused(tmp_path) -> None:
+    """Unknown is not the same as unsupported (research R1).
+
+    Self-hosted providers are routinely absent from litellm's model metadata — an Ollama model
+    reports nothing while Ollama itself has supported structured output since 0.5. Refusing on
+    unknown would make this gate a check on metadata completeness rather than on the model, and
+    would lock out exactly the providers a vendor-neutral design exists to allow.
+    """
+    from ticket_dataset.model.fake import FakeModelClient
+    from ticket_dataset.run.run import GenerationRun
+
+    class UnknownCapability(FakeModelClient):
+        @staticmethod
+        def supports_structured_output(model_id: str) -> bool | None:
+            return None  # no metadata for this model
+
+    config = GenerationConfig(
+        record_count=60,
+        output_path=tmp_path / "release" / "corpus.jsonl",
+        models={
+            "generator": {"model_id": "ollama_chat/llama3.1"},
+            "judge": {"model_id": "ollama_chat/llama3.1"},
+        },
+    )
+    slots = GenerationRun(config=config, seed=1, model_client=UnknownCapability()).prepare()
+    assert len(slots) == 60
+
+
+def test_the_real_client_reports_three_answers() -> None:
+    """True, False, and unknown — collapsing the last two is what caused the bug."""
+    from ticket_dataset.model.litellm_client import LiteLLMModelClient
+
+    assert LiteLLMModelClient.supports_structured_output("anthropic/claude-opus-4-5") is True
+    assert LiteLLMModelClient.supports_structured_output("azure/gpt-audio-2025-08-28") is False
+    assert LiteLLMModelClient.supports_structured_output("ollama_chat/llama3.1") is None

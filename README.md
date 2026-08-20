@@ -37,6 +37,29 @@ export GEMINI_API_KEY=...           # gemini/gemini-2.5-pro
 **No vendor is pinned.** No requirement in this project names one — switching providers is a
 configuration change, not a code change.
 
+### A self-hosted or remote provider
+
+Anything litellm reaches works, including a remote Ollama server. The model string names the
+provider; anything that provider needs goes in `extra`:
+
+```toml
+[models.generator]
+model_id = "ollama_chat/llama3.1"
+
+[models.generator.extra]
+api_base = "http://ollama.internal:11434"    # without this, litellm assumes localhost
+```
+
+`configs/ollama-remote.toml` is a worked example. Two things worth knowing:
+
+- **Use `ollama_chat/`, not `ollama/`.** The chat endpoint honours the system message this
+  pipeline relies on for its cache-stable prompt prefix, and supports the structured-output
+  `format` parameter that response validation is built around (Ollama ≥ 0.5).
+- **Smaller models fail structural validation more often.** Every response must return the exact
+  turn count with strictly alternating roles; a model that drifts will produce discards rather
+  than bad records, and the run reports them by reason. If the coherence discard rate exceeds its
+  threshold the run fails, which is the intended signal — not a bug to work around.
+
 Credentials are an **access mechanism**, not a generation input. They never influence output and
 are never written to a manifest, report, checkpoint, or log. Anything else in the environment that
 could change *which* model serves a request — an alternate endpoint, a profile, a region — is
