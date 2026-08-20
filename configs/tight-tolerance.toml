@@ -1,0 +1,19 @@
+# A refusal fixture: 20 records cannot achieve a 2pp tolerance. Assigning whole records bounds
+# per-member error at 100/20 = 5pp before any discard, so this is unsatisfiable by arithmetic
+# alone. Expected outcome is exit 2, naming both remedies (FR-031b).
+record_count = 20
+output_path = "data/release/tight-tolerance.jsonl"
+composition_tolerance_pp = 2.0
+
+[composition.category]
+billing = 0.5
+technical = 0.5
+
+[composition.priority]
+normal = 1.0
+
+[composition.channel]
+email = 1.0
+
+[composition.resolution_status]
+resolved = 1.0

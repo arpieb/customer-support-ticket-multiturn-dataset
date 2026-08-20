@@ -1,0 +1,17 @@
+# A refusal fixture: the category proportions sum to 1.4, not 1.0.
+# Expected outcome is exit 2, before any model call (FR-032).
+record_count = 500
+output_path = "data/release/bad-composition.jsonl"
+
+[composition.category]
+billing = 0.7
+technical = 0.7
+
+[composition.priority]
+normal = 1.0
+
+[composition.channel]
+email = 1.0
+
+[composition.resolution_status]
+resolved = 1.0
