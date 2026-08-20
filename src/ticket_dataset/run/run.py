@@ -543,10 +543,13 @@ class GenerationRun:
         checker = getattr(self.model_client, "supports_structured_output", None)
         if checker is None:  # a fake, or a client that does not advertise the capability
             return
+        # Only an explicit "no" refuses. An unknown model — which every self-hosted provider is —
+        # proceeds: the first structural discard would say more than a metadata gap does, and
+        # refusing on unknown would lock out the providers a vendor-neutral design exists to allow.
         unsupported = [
             spec.model_id
             for spec in (self.config.models.generator, self.config.models.judge)
-            if not checker(spec.model_id)
+            if checker(spec.model_id) is False
         ]
         if unsupported:
             raise ConfigError(
