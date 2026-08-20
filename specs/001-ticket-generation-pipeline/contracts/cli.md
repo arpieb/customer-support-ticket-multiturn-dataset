@@ -24,8 +24,11 @@ Produce a corpus. The primary command.
 | `--dry-run` | flag | off | Validate config, apportion composition, assert the detector floor, and report the plan — no model calls |
 | `--quiet` | flag | off | Suppress progress; the report is still written |
 
-Progress is reported to stderr while records stream to the staging file (FR-012), so a long run is
-observable without polluting stdout.
+Progress is reported to stderr while records stream to the staging file (FR-012, FR-012g): records
+completed against the target, elapsed time, rate, an estimate once enough records exist to make one
+meaningful, and the discard count so far. A terminal gets one line rewritten in place; a pipe or a CI log
+gets whole lines, bounded to roughly twenty for a run of any size. `--quiet` suppresses it. stdout carries
+the machine-readable report and nothing else, so a piped invocation is never corrupted.
 
 **Exit statuses**
 

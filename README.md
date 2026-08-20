@@ -77,6 +77,16 @@ the release path never depends on a remote service.
 uv run ticket-dataset generate --config configs/smoke.toml --seed 42
 ```
 
+It reports progress as it goes — records completed, elapsed time, rate, and an estimate — so a
+long run against a slow model is visibly working rather than possibly hung:
+
+```
+  7/20 records  (35%)  1m12s  5.8/min  eta 2m14s
+```
+
+Progress goes to stderr; stdout carries only the machine-readable report, so piping is safe.
+`--quiet` suppresses it for unattended runs.
+
 Check what it would do first, without spending anything:
 
 ```bash

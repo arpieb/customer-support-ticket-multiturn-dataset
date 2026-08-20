@@ -14,6 +14,7 @@ refuses unless the detector floor was demonstrated for this run.
 
 import asyncio
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,6 +49,7 @@ from ticket_dataset.run.checkpoint import Checkpoint, input_fingerprints, select
 from ticket_dataset.run.enums import ADVISORY_CATEGORIES, BLOCKING_FLOOR, DiscardReason, RunOutcome
 from ticket_dataset.run.ids import new_run_id, record_id
 from ticket_dataset.run.manifest import ModelRecord, RunManifest, Segment, score_histogram
+from ticket_dataset.run.progress import Progress
 from ticket_dataset.run.report import RunReport
 from ticket_dataset.run.retention import clean_after_success
 from ticket_dataset.run.revision import capture_revision, environment_overrides, hash_inputs
@@ -125,6 +127,10 @@ class GenerationRun:
     records_scanned: int = 0
     fields_scanned: int = 0
     resumed_from: Checkpoint | None = None
+    #: Called after each slot settles, so a caller can show progress (FR-012). Invoked inside the
+    #: pipeline's lock, so callbacks are serialized and cannot interleave — which is why this is
+    #: safe to hang a terminal write off despite the concurrency.
+    on_progress: Callable[[Progress], None] | None = None
     fallbacks_used: dict[str, int] = field(default_factory=dict)
     assigned_composition: dict = field(default_factory=dict)
     requested_run_id: str | None = None
@@ -381,6 +387,19 @@ class GenerationRun:
                 writer.submit(outcome.position, outcome.record)
             else:
                 writer.skip(outcome.position)
+
+            if self.on_progress is not None:
+                # After the writer has taken the record, so the count reflects the slot that just
+                # settled rather than the one before it.
+                self.on_progress(
+                    Progress(
+                        written=writer.records_written,
+                        generated=stats.records_generated,
+                        target=self.config.record_count,
+                        discarded=sum(stats.discards.values()),
+                        elapsed_seconds=(datetime.now(UTC) - self.started_at).total_seconds(),
+                    )
+                )
 
         self.assigned_composition = self._assigned_composition(slots)
 

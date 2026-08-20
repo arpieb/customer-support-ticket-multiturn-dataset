@@ -18,6 +18,7 @@ import typer
 from ticket_dataset.config.loader import load_config
 from ticket_dataset.errors import TicketDatasetError
 from ticket_dataset.run.enums import RunOutcome
+from ticket_dataset.run.progress import ProgressReporter
 
 app = typer.Typer(
     add_completion=False,
@@ -98,30 +99,64 @@ def generate(
         print(json.dumps(plan, indent=2))
         raise typer.Exit(EXIT_OK)
 
+    reporter: ProgressReporter | None = None
+    last_progress = None
     if not quiet:
-        _note(f"run {run.run_id}: generating {len(slots)} records into {run.staging_path}")
+        verb = "resuming" if resume else "generating"
+        _note(f"run {run.run_id}: {verb} {len(slots)} records into {run.staging_path}")
+        # FR-012 asks that progress be observable during a long run. Records reaching the staging
+        # file satisfies that literally, but an operator watching a slow model work through a
+        # corpus cannot tell a running job from a hung one without this.
+        reporter = ProgressReporter(target=loaded.record_count)
+
+        def _observe(progress) -> None:
+            nonlocal last_progress
+            last_progress = progress
+            reporter.update(progress)
+
+        run.on_progress = _observe
 
     import asyncio
 
-    result = asyncio.run(run.execute())
-    summary = {
-        "run_id": result.run_id,
-        "outcome": result.outcome.value,
-        "records_written": result.records_written,
-        "records_generated": result.stats.records_generated,
-        "discards": {reason.value: count for reason, count in result.stats.discards.items()},
-        "duplicates": result.duplicates,
-        "staging_path": str(result.staging_path),
-    }
-    print(json.dumps(summary, indent=2))
-    if not quiet:
-        _note(
-            f"run {result.run_id}: {result.outcome.value}, "
-            f"{result.records_written} records in staging"
-        )
-        # Until the privacy gate lands, nothing may move to the release path (Constitution IV).
-        _note("note: output is in staging and has passed no privacy scan; it is not release output")
+    try:
+        result = asyncio.run(run.resume() if resume else run.execute())
+    except TicketDatasetError as error:
+        if reporter is not None:
+            reporter.close()
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    if reporter is not None:
+        reporter.close(last_progress)
+
+    # One object behind both surfaces, so the machine verdict and the human text cannot disagree
+    # (FR-036). stdout carries the report; stderr carries the rendering.
+    print(result.report.to_json() if result.report else "{}")
+    if not quiet and result.report is not None:
+        _note(result.report.render())
     raise typer.Exit(_OUTCOME_STATUS[result.outcome])
+
+
+@app.command("validate-manifest")
+def validate_manifest_command(
+    path: Annotated[Path, typer.Argument(help="The manifest to check.")],
+) -> None:
+    """Check a manifest against its contract and its reconciliation rule (FR-026, FR-028).
+
+    Validation checks the arithmetic, not only that fields are present: a manifest whose fields
+    are all there but whose counts do not balance is not valid, and presence checking alone would
+    pass exactly the manifests worth catching.
+    """
+    from ticket_dataset.run.manifest import validate_manifest_file
+
+    problems = validate_manifest_file(path)
+    if not problems:
+        _note(f"{path}: valid")
+        raise typer.Exit(EXIT_OK)
+    for problem in problems:
+        _note(f"  - {problem}")
+    _note(f"{path}: {len(problems)} problem(s)")
+    raise typer.Exit(EXIT_FAILED)
 
 
 privacy_app = typer.Typer(help="Inspect and manage the privacy gate.")
