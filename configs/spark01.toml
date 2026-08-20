@@ -1,0 +1,52 @@
+# Generating against a remotely hosted Ollama server.
+#
+# litellm reaches Ollama over HTTP, so nothing here is special-cased in this project: the model
+# string names the provider and `extra` carries whatever that provider needs. `api_base` is the
+# one setting a remote host requires — without it litellm assumes http://localhost:11434.
+#
+# Use `ollama_chat/` rather than `ollama/`: the chat endpoint honours the system message this
+# pipeline relies on for its cache-stable prompt prefix, and supports the structured-output
+# `format` parameter that FR-009b's validation is built around (Ollama >= 0.5).
+record_count = 20
+output_path = "data/release/ollama-smoke.jsonl"
+composition_tolerance_pp = 10.0
+
+# Self-hosted models are typically slower per call and have no provider-side rate limit worth
+# respecting — the bound that matters is your own server's concurrency.
+max_concurrency = 2
+requests_per_minute = 120
+
+[turns]
+min = 4
+max = 8
+
+[models.generator]
+model_id = "ollama_chat/gpt-oss:20b"
+max_tokens = 4096
+
+[models.generator.extra]
+api_base = "http://100.83.200.67:43411"
+
+[models.judge]
+model_id = "ollama_chat/gpt-oss:20b"
+max_tokens = 2048
+
+[models.judge.extra]
+api_base = "http://100.83.200.67:43411"
+
+# 20 records cannot represent the default distribution's smallest shares, so the mix is flattened
+# to members that round to at least one record (FR-032).
+[composition.category]
+billing = 0.5
+technical = 0.5
+
+[composition.priority]
+normal = 1.0
+
+[composition.channel]
+email = 0.5
+chat = 0.5
+
+[composition.resolution_status]
+resolved = 0.75
+escalated = 0.25

@@ -203,9 +203,15 @@ Stated here rather than discovered later:
   detected.** Offline detection of them is not reliable, so they are declared gaps that every
   report restates. The corpus is synthetic by construction; the scan is a safety net confirming
   that held, not the primary control.
-- **The coherence threshold is a default, not a validated one.** Nothing in this repository records
-  whether the judge was ever calibrated against human judgement. `sample-for-review` exports a
-  seeded sample to make that comparison cheap, but no requirement obliges it to happen.
+- **The coherence threshold is a default, not a validated one.** Nothing obliges a calibration to
+  happen or a release to cite one. `sample-for-review` and `ticket-dataset calibrate` make the
+  comparison cheap and leave a committed record under `calibration/`, but running them is a
+  choice. See `calibration/README.md`.
+- **A judge can score generously without anyone noticing.** Rubric v1 offered three anchors per
+  criterion and a self-hosted judge returned three distinct scores across twenty records, 70% of
+  them perfect — leaving the threshold nothing to separate. v2 uses a continuous scale, but the
+  general risk remains: check the `distinct` count in a calibration record before trusting a
+  threshold.
 - **The judge shares the generating model by default.** Self-preference bias is real; the
   mitigation is that the judge scores declared rubric criteria rather than choosing between
   candidates. Pointing the roles at different models is a configuration change.

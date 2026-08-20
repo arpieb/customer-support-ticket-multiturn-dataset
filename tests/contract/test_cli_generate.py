@@ -80,7 +80,9 @@ def test_dry_run_plans_without_calling_a_model() -> None:
     plan = json.loads(result.stdout)
     assert plan["slots"] == 20
     assert plan["model_calls_estimated"] == 40
-    assert plan["rubric_id"] == "coherence-v1"
+    from ticket_dataset.generation.rubric import load_rubric
+
+    assert plan["rubric_id"] == load_rubric(Path("prompts/coherence-rubric.md")).rubric_id
 
 
 def test_stdout_carries_machine_readable_output_only() -> None:

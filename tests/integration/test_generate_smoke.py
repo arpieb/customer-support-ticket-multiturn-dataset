@@ -87,6 +87,9 @@ async def test_turn_counts_stay_inside_the_configured_range(
 
 
 async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path) -> None:
+    from ticket_dataset.generation.rubric import load_rubric
+
+    expected_rubric_id = load_rubric(Path("prompts/coherence-rubric.md")).rubric_id
     result = await _run(make_config(tmp_path))
     for record in _records(_output(result)):
         assert record["run_id"] == result.run_id
@@ -94,7 +97,9 @@ async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path
         assert record["source_id"].startswith("domain.md@")
         assert record["subdomain"]
         assert record["generation"]["model_id"]
-        assert record["quality"]["rubric_id"] == "coherence-v1"
+        # The rubric the run actually used, not a pinned version: a deliberate rubric bump is a
+        # provenance change (FR-009g), while a record naming a rubric the run did not use is a bug.
+        assert record["quality"]["rubric_id"] == expected_rubric_id
 
 
 async def test_record_ids_are_unique(tmp_path: Path, staging_root: Path) -> None:
