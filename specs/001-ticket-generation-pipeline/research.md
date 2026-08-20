@@ -345,6 +345,10 @@ batch path as an additive change rather than a rewrite.
 role and content, in order, with no metadata and no identifiers. Hold a `set` of fingerprints for the run;
 count collisions and report the total (FR-034). Duplicates are **reported, not discarded**.
 
+**Scope**: within a single run only (FR-039). Comparing against previously generated corpora would need a
+persistent cross-run registry the feature does not otherwise require, and FR-034's purpose is a diversity
+signal for the run in hand.
+
 **Rationale**: FR-034 asks for duplicate visibility as a diversity signal, not a filter — and the spec's
 assumption is explicit that a high duplicate rate means the prompt document needs broadening. Discarding
 duplicates would suppress the very signal the requirement exists to surface, and would inflate the discard

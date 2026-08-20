@@ -591,6 +591,33 @@ stated tolerance.
   privacy findings, detectors run, uncovered categories, and achieved composition.
 - **FR-036**: The report MUST be available in a machine-readable form so automation can act on it without
   parsing prose, and the run MUST signal success or failure unambiguously.
+- **FR-036a**: The report MUST be **JSON**, written beside the artifact on success and into the run's
+  intermediate directory otherwise, named by the run identifier in both cases. A report whose location
+  depends on how the run ended would be hardest to find exactly when it is most needed.
+- **FR-036b**: A run's outcome MUST be one of four distinguishable states, because they call for different
+  responses and a binary cannot express them: **completed** (the artifact reached the release path),
+  **refused** (nothing was generated and nothing was spent), **failed** (output exists but did not qualify,
+  with the accounting explaining why), and **stopped** (interrupted, budget exhausted, or halted by a
+  threshold — resumable, with work preserved).
+- **FR-037**: The discard-rate thresholds — privacy (FR-021a) and coherence (FR-009k) — MUST be evaluated
+  **during the run**, not only at its end, once enough records have been generated for a rate to be
+  meaningful: at least 1,000, or 5% of the requested corpus size, whichever is larger. A breach MUST stop
+  the run, checkpoint it, and report failure. Evaluating only at completion means a generator emitting
+  identifiers on every record still costs a full release-scale run before anyone is told; the minimum sample
+  exists so that an early cluster of discards cannot fail a run that would have been fine.
+- **FR-037a**: The **composition tolerance** (FR-031) MUST be evaluated only at completion. A partial corpus
+  has no achieved composition to compare — apportionment is only satisfied once every slot has been
+  attempted — so an early check would measure incompleteness rather than drift.
+- **FR-038**: The coherence score distribution MUST be reported as **counts in fixed buckets of 0.05 across
+  the 0–1 range**, together with the count, minimum, maximum, mean, and median. Fixed buckets make two runs
+  comparable without re-deriving anything; a free choice of bucketing would make every run's distribution
+  incomparable with every other.
+- **FR-039**: Duplicate detection is **within a single run**. Two records are duplicates when their turn
+  sequences — each turn's role and content in order, Unicode-normalized — are identical; ticket metadata and
+  identifiers are excluded, since assigned metadata varies by construction and would mask the repetition the
+  count exists to surface. Comparison against previously generated corpora is out of scope: it would require
+  a persistent cross-run registry this feature does not otherwise need, and FR-034's purpose is a diversity
+  signal for the run in hand.
 
 ### Key Entities
 
@@ -663,7 +690,10 @@ stated tolerance.
 - **SC-011**: The coherence judge is calibrated at least once against human judgment on a sample before a
   corpus is released, so the automated gate is known to track what a reviewer would conclude rather than
   being trusted on faith.
-- **SC-010**: A new contributor can generate their first corpus using the project's documentation alone.
+- **SC-010**: A new contributor can generate their first corpus using the project's `README.md` and the
+  feature's quickstart alone — those two documents are the scope of this claim. Between them they must cover
+  installation, how credentials are supplied, how a configuration is written, and one worked run that
+  produces a corpus.
 
 ## Assumptions
 

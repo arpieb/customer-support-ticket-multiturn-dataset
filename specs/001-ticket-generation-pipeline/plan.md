@@ -177,7 +177,8 @@ src/ticket_dataset/
 │   ├── ids.py                # Fresh run_id per run; UUIDv5 record IDs from (run_id, position) (FR-003a, FR-003b)
 │   ├── revision.py           # Git SHA + dirty flag, input hashing, environment overrides (R10, FR-008c)
 │   ├── budget.py             # Declared time and call ceilings; stop-and-checkpoint on exhaustion (FR-012f)
-│   └── report.py             # RunReport; JSON, text, and exit status from one object (R9, FR-035)
+│   ├── thresholds.py         # Mid-run discard-rate evaluation after the minimum sample (FR-037)
+│   └── report.py             # RunReport; JSON, text, outcome, and exit status from one object (R9, FR-035, FR-036a/b)
 ├── dedup.py                  # Turn-sequence fingerprints; duplicate counting (FR-034, R13)
 └── cli/
     └── main.py               # Typer app — thin wrapper, no logic of its own

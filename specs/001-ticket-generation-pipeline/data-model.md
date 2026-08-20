@@ -28,6 +28,7 @@ Three families live here and should not be confused:
 | `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory (reported, never blocking): `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor at identifier-type level; the advisory tier and per-category blocking status are required by FR-018b; R8 |
 | `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `detector_error`, `model_refusal`, `attempts_exhausted` | **FR-026b** enumerates this closed set normatively; each member maps to exactly one requirement. `detector_error` is deliberately distinct from `privacy_finding`: a malfunctioning detector is neither a clean result nor a real identifier (FR-017a) |
 | `Verdict` | `pass`, `fail` | FR-036 |
+| `RunOutcome` | `completed`, `refused`, `failed`, `stopped` | FR-036b. Four states because they call for different responses: nothing spent, output that did not qualify, and resumable work are not the same fact |
 
 `Role`, `Category`, `Priority`, `Channel`, and `ResolutionStatus` are **closed sets** — any other value is a
 validation failure (FR-005, FR-006). Removing a member or tightening a constraint is a breaking change
@@ -203,9 +204,9 @@ The record of how one run produced its output. Validatable; validation names any
 | `retry_counts` | `map[str, int]` | Transport retries by class — distinct from discards (FR-012d) |
 | `resumed_count` | `int` | How many times the run was resumed; `0` for an uninterrupted run (FR-015d) |
 | `segments` | `list[Segment]` | One per run or resume: `code_revision`, `started_at`, `completed_at`, and the record range it produced (FR-015f). A changed revision does not refuse a resume; it is described instead |
-| `duplicate_count` | `int` | Exact duplicate conversations produced (FR-034) |
+| `duplicate_count` | `int` | Exact duplicate conversations produced within this run (FR-034, FR-039); never compared against earlier corpora |
 | `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three, always (FR-031a). Requested → assigned is apportionment error; assigned → achieved is discard-induced drift. Without the middle term a tolerance failure has no attributable cause |
-| `coherence_score_distribution` | `Histogram` | Bucketed score counts across the corpus (SC-009) |
+| `coherence_score_distribution` | `Histogram` | Counts in fixed 0.05 buckets plus count, min, max, mean, median (FR-038, SC-009) |
 | `output_filename` | `str` | The artifact this manifest describes (FR-025b) |
 | `output_sha256` | `str` | Checksum of that artifact, so a manifest cannot be read beside a file it does not describe and post-hoc alteration is detectable (FR-025b) |
 
@@ -295,14 +296,15 @@ three cannot disagree (FR-035, FR-036).
 | Field | Type | Rules |
 |-------|------|-------|
 | `verdict` | `Verdict` | `fail` if any threshold was exceeded or the run stopped short (FR-036) |
+| `outcome` | `RunOutcome` | `completed`, `refused`, `failed`, or `stopped` (FR-036b) — the distinction a bare verdict cannot carry |
 | `run_id`, `schema_version` | `str` | Ties the report to the run and the contract |
 | `records_generated` / `records_written` | `int` | (FR-035) |
 | `discards` | `list[DiscardAccount]` | By reason (FR-035) |
 | `privacy` | `PrivacyReport` | Findings with masked renderings; `detectors_run`; `covered_types` and `declared_gaps`, each at identifier-type level; per-category blocking status; `records_examined`; `fields_examined` (turn content and scenario — FR-023a); canary probe results; approved exceptions; and the quarantine path and count (FR-018a, FR-018b, FR-019, FR-020, FR-020a, FR-021b, FR-023, FR-023a) |
 | `composition_requested` / `composition_assigned` / `composition_achieved` | `Composition` | All three (FR-031a) |
 | `composition_breaches` | `list[Breach]` | Dimension, member, requested, achieved, and drift for every member exceeding the tolerance — a failure names the member, not just the dimension (FR-031) |
-| `coherence_score_distribution` | `Histogram` | (SC-009) |
-| `duplicate_count` | `int` | (FR-034) |
+| `coherence_score_distribution` | `Histogram` | Counts in fixed 0.05 buckets across 0–1, plus count, min, max, mean, and median (FR-038). Fixed buckets make two runs comparable without re-deriving anything |
+| `duplicate_count` | `int` | Within-run duplicates only, matched on the Unicode-normalized turn sequence with metadata excluded (FR-034, FR-039) |
 | `retry_counts` | `map[str, int]` | (FR-012d) |
 | `failures` | `list[str]` | Which threshold or condition failed the run, named specifically |
 

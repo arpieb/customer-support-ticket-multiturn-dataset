@@ -18,7 +18,7 @@ Produce a corpus. The primary command.
 | `--config PATH` | path | — | **Required.** The single serialized configuration (FR-008) |
 | `--seed INT` | int | — | **Required.** Explicit; there is no implicit or time-derived seed (Principle II) |
 | `--out PATH` | path | from config | Overrides `output_path`. Must be under `data/release/` and must not exist. There is deliberately **no** overwrite option — the run refuses and names the path, and removing a release artifact stays a manual act (FR-013, FR-014) |
-| `--report PATH` | path | beside the artifact | Machine-readable run report (FR-036) |
+| `--report PATH` | path | see below | Overrides the report location. By default the JSON report is written beside the artifact on success and into `data/interim/<run_id>/` otherwise, named by run identifier in both cases (FR-036a) |
 | `--resume` | flag | off | Resume a checkpointed run. The candidate is found by matching input fingerprints; several matches refuse and list them (FR-015h) |
 | `--run-id ID` | str | — | Names the run to resume when fingerprint matching is ambiguous (FR-015h) |
 | `--dry-run` | flag | off | Validate config, apportion composition, assert the detector floor, and report the plan — no model calls |
@@ -34,10 +34,13 @@ observable without polluting stdout.
 | `0` | Corpus written to the release path; every threshold satisfied |
 | `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance — each computed over `records_generated` per FR-026a) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
 | `2` | Refused before generating: invalid config, unsatisfiable composition, a tolerance unachievable at the requested corpus size, existing output path, a floor type that failed its canary probe, or a resume whose inputs no longer match, an ambiguous or unreadable checkpoint, or a destination another run has already claimed (FR-011, FR-018, FR-018a, FR-031b, FR-032, FR-015e, FR-015g, FR-015h, FR-014a) |
-| `3` | Interrupted, **or a declared budget was exhausted** (FR-012f); progress checkpointed and resumable. Completed work is never lost to a ceiling |
+| `3` | **Stopped**: interrupted, a declared budget exhausted (FR-012f), or a discard-rate threshold breached mid-run (FR-037). Progress checkpointed and resumable; completed work is never lost |
 
-The distinction between `1` and `2` is the point: `2` means nothing was generated and nothing was spent;
-`1` means a corpus exists in staging and its accounting explains why it did not qualify.
+The four statuses map onto the four run outcomes FR-036b requires — completed, refused, failed, stopped —
+because a binary cannot carry the distinction. `2` means nothing was generated and nothing was spent; `1`
+means a corpus exists in staging and its accounting explains why it did not qualify; `3` means work is
+preserved and resumable. The report's `outcome` field carries the same value for automation that should not
+be reading exit codes.
 
 ---
 

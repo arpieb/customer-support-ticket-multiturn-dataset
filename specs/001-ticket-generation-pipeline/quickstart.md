@@ -305,7 +305,9 @@ to matter, the fix is a committed calibration artifact that a datasheet must ref
 ## Scale check (SC-001)
 
 `configs/release.toml` requests 100,000 records — on the order of 200,000 model calls before retries and
-discards — and declares a budget (`max_runtime`, `max_model_calls`) so an unattended run has a ceiling. When
+discards — and declares a budget (`max_runtime`, `max_model_calls`) so an unattended run has a ceiling. A
+defective generator does not cost the full run either: the privacy and coherence discard rates are
+re-evaluated once 5,000 records have been generated, and a breach stops and checkpoints (FR-037). When
 a ceiling is reached the run stops and checkpoints with exit `3`, leaving the partial corpus and its
 accounting intact rather than continuing past it (FR-012f). Do not run it casually; it is the acceptance run
 for a release, not part of the test suite.

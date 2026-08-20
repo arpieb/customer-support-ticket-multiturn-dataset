@@ -162,7 +162,7 @@
     "duplicate_count": {
       "type": "integer",
       "minimum": 0,
-      "description": "Exact duplicate conversations produced; reported, never discarded (FR-034, research R13)."
+      "description": "Exact duplicate conversations produced within this run, matched on the Unicode-normalized turn sequence with metadata excluded (FR-034, FR-039). Reported, never discarded; never compared against earlier corpora."
     },
     "composition_requested": {
       "$ref": "#/$defs/Composition"
@@ -180,7 +180,7 @@
         "type": "integer",
         "minimum": 0
       },
-      "description": "Bucket label -> record count, so corpus quality is visible rather than assumed (SC-009)."
+      "description": "Counts in fixed 0.05 buckets across the 0-1 range, plus count, min, max, mean, and median (FR-038, SC-009). Fixed buckets are required so two runs are comparable without re-deriving anything."
     },
     "output_filename": {
       "type": "string",

@@ -68,14 +68,17 @@ run = GenerationRun(config=config, seed=42, model_client=client)
 result: RunResult = await run.execute()          # or run.resume()
 ```
 
-`RunResult` exposes `manifest`, `report`, `artifact_path`, and `verdict`. `execute()`:
+`RunResult` exposes `manifest`, `report`, `artifact_path`, `verdict`, and `outcome` — one of `completed`,
+`refused`, `failed`, or `stopped` (FR-036b). `execute()`:
 
 1. asserts the detector floor and refuses before generating if it is not covered (FR-018);
 2. refuses if the output path exists (FR-014);
 3. apportions composition and derives every slot's choices from `(seed, position, attempt)` (FR-012b);
 4. runs bounded-concurrency generation → structural validation → judging → schema validation → privacy
    scan, writing accepted records in slot order to the staging path (FR-012, FR-012c);
-5. checkpoints periodically (FR-015a);
+5. checkpoints periodically (FR-015a), and re-evaluates the privacy and coherence discard rates once at
+   least `max(1000, 5% of record_count)` records have been generated — a breach stops the run and
+   checkpoints rather than paying out the rest of a defective corpus (FR-037);
 6. writes the manifest and report, and moves the artifact into the release path **only** on success.
 
 `resume()` reads the checkpoint, refuses when the input fingerprints differ (FR-015e), truncates the staging
