@@ -366,11 +366,18 @@ class GenerationRun:
         scores: list[float] = []
         outcome_state = RunOutcome.COMPLETED
 
-        def on_outcome(outcome: SlotOutcome) -> None:
+        def on_attempt(outcome: SlotOutcome) -> None:
+            """Fires once per *discarded attempt*, beside where the discard is counted.
+
+            A blocked attempt is retained whether or not a later attempt rescued the slot. The
+            discard is counted either way (FR-026a), so quarantining only the ones that also
+            failed would leave the report claiming findings the quarantine cannot show — and the
+            attempts a retry replaced are the ones nothing else records (FR-021b).
+            """
             if outcome.blocked_record is not None:
-                # Retained outside the release path so a reviewer has something to adjudicate
-                # when the masked rendering alone is insufficient (FR-021b).
                 quarantine.add(outcome.blocked_record, outcome.blocking_findings)
+
+        def on_outcome(outcome: SlotOutcome) -> None:
             if outcome.record is not None:
                 served = outcome.record["generation"]["model_id"]
                 if served and served != self.config.models.generator.model_id:
@@ -437,6 +444,7 @@ class GenerationRun:
                 max_attempts=self.config.max_attempts_per_slot,
                 consecutive_failure_limit=self.config.consecutive_failure_limit,
                 on_outcome=on_outcome,
+                on_attempt=on_attempt,
                 stats=stats,
                 on_progress=self._progress_hook(checkpoint_now, stats),
             )

@@ -72,6 +72,7 @@ async def run_slots(
     max_attempts: int,
     consecutive_failure_limit: int,
     on_outcome: Callable[[SlotOutcome], None] | None = None,
+    on_attempt: Callable[[SlotOutcome], None] | None = None,
     stats: PipelineStats | None = None,
     on_progress: Callable[[], str | None] | None = None,
 ) -> PipelineStats:
@@ -102,6 +103,12 @@ async def run_slots(
             async with lock:
                 if outcome.discard_reason is not None:
                     stats.discards[outcome.discard_reason] += 1
+                    # Deliberately adjacent to the count. Anything that must happen once per
+                    # discarded attempt belongs here, not in `on_outcome` — that fires once per
+                    # slot with the *final* attempt, so a side effect placed there silently
+                    # skips every attempt a retry replaced.
+                    if on_attempt is not None:
+                        on_attempt(outcome)
             if stop.is_set():
                 return
 
@@ -112,6 +119,8 @@ async def run_slots(
                 if outcome.discard_reason is None:
                     outcome.discard_reason = DiscardReason.ATTEMPTS_EXHAUSTED
                     stats.discards[DiscardReason.ATTEMPTS_EXHAUSTED] += 1
+                    if on_attempt is not None:
+                        on_attempt(outcome)
                 stats.consecutive_failures += 1
                 if stats.consecutive_failures >= consecutive_failure_limit:
                     # Stop and checkpoint rather than spend the rest of the corpus finding
