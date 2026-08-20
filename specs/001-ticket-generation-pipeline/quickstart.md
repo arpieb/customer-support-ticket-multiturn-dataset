@@ -261,7 +261,9 @@ uv run ticket-dataset generate --config configs/smoke16.toml --seed 42 --out dat
 ```
 
 **Expect**: identical composition and identical per-position seeded choices — same assigned metadata, same
-assigned `subdomain`, and same turn count at every `record_index`. The `scenario` the model elaborates
+assigned `subdomain`, same turn count, and **same ticket timestamps** at every `record_index` (FR-006a).
+That list is exactly what FR-010a defines as equivalence, so this scenario tests the definition rather than
+an interpretation of it. The `scenario` the model elaborates
 within that subdomain differs, as does conversation text, and both are expected and documented (FR-010,
 FR-008d).
 
@@ -271,7 +273,8 @@ import json
 a=[json.loads(l) for l in open('data/release/c1.jsonl')]
 b=[json.loads(l) for l in open('data/release/c16.jsonl')]
 key=lambda r:(r['record_index'], r['subdomain'], r['metadata']['category'], r['metadata']['priority'],
-              r['metadata']['channel'], r['metadata']['resolution_status'], len(r['turns']))
+              r['metadata']['channel'], r['metadata']['resolution_status'], len(r['turns']),
+              r['metadata']['created_at'], r['metadata'].get('resolved_at'))
 assert list(map(key,a))==list(map(key,b))
 print('seeded choices identical across concurrency levels')
 "
@@ -289,9 +292,13 @@ uv run ticket-dataset sample-for-review --corpus data/release/smoke.jsonl --n 20
   --out data/interim/calibration-sample.jsonl
 ```
 
-Review the sample by hand, compare human judgments against the recorded scores, and record the comparison
+Review the sample by hand, compare human judgements against the recorded scores, and record the comparison
 alongside the rubric version. Until that has happened at least once, the 0.8 threshold is a documented
 default, not a validated one — say so in any datasheet.
+
+**This is deliberately not enforced.** No requirement obliges a calibration record to exist or a release to
+cite one (CHK063), so whether calibration ever happened leaves no trace in the repository. If that turns out
+to matter, the fix is a committed calibration artifact that a datasheet must reference.
 
 ---
 

@@ -60,7 +60,9 @@ derivation makes each slot's choices a pure function of `(seed, position, attemp
 concurrency level, scheduling, retries, and resume. This is precisely what SC-013 measures: two runs at
 different concurrency produce identical per-position choices. `blake2b` is in the standard library, is
 fast, and gives well-distributed keys; the attempt component means a retried slot re-rolls its non-metadata
-choices rather than repeating a draw that already failed. The slot's **subdomain** is drawn with this
+choices rather than repeating a draw that already failed. Ticket timestamps are drawn the same way (FR-006a), which is what
+makes FR-012b's list of seeded choices exhaustive rather than illustrative — a per-record value outside that
+list would be a hole in the reproducibility claim. The slot's **subdomain** is drawn with this
 generator from the prompt document's declared list (FR-008d), which is what makes FR-012b's claim about
 scenario selection true: the subdomain is seeded and comparable across runs, while the situation the model
 elaborates within it is model output and is not.

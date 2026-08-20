@@ -158,7 +158,7 @@
         "created_at": {
           "type": "string",
           "format": "date-time",
-          "description": "Timezone-aware (FR-006)."
+          "description": "Timezone-aware. A seeded draw from the run's configured date window, assigned before the model is called (FR-006, FR-006a)."
         },
         "resolved_at": {
           "type": [
@@ -166,7 +166,7 @@
             "null"
           ],
           "format": "date-time",
-          "description": "Must not precede created_at. Required when resolution_status is 'resolved'; absent otherwise. The conditional is enforced by the Pydantic model and by the two allOf branches below."
+          "description": "created_at plus a seeded duration. Present when and only when resolution_status is 'resolved' (FR-006b); the two allOf branches below enforce it."
         }
       },
       "allOf": [

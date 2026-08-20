@@ -57,7 +57,13 @@ Manifests are named `<run_id>.manifest.json` and written beside the artifact (FR
 ## `ticket-dataset privacy scan PATH`
 
 Run the offline privacy scan over an existing JSONL artifact, independently of a generation run. Useful for
-re-checking an artifact after the exception file changes.
+re-checking an artifact after the exception file changes — re-running generation to verify an approval would
+cost two model calls per record.
+
+The path is deliberately unrestricted, which is **shared surface with feature 002** (spec Assumptions): 002
+will need the same capability and is expected to reuse this implementation rather than grow a second one.
+The boundary that holds is ownership — this feature owns the blocking gate over its own output; 002 owns
+judging a dataset of uncertain provenance as a whole.
 
 | Option | Type | Default | Notes |
 |--------|------|---------|-------|

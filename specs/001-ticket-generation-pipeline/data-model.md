@@ -81,7 +81,8 @@ would be provenance-shaped noise. Adding one later is an additive MINOR change.
 ### TicketMetadata
 
 Every field here is **assigned by the pipeline before the model is called** (research R3), not chosen by the
-model. That is what makes FR-031's tolerance achievable by construction.
+model — timestamps included (FR-006a). That is what makes FR-031's tolerance achievable by construction and
+what makes FR-012b's list of seeded choices exhaustive rather than merely illustrative.
 
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
@@ -89,8 +90,8 @@ model. That is what makes FR-031's tolerance achievable by construction.
 | `priority` | `Priority` | yes | Closed set; assigned by apportionment |
 | `channel` | `Channel` | yes | Closed set; assigned by apportionment |
 | `resolution_status` | `ResolutionStatus` | yes | Closed set; assigned by apportionment |
-| `created_at` | `datetime` | yes | Timezone-aware (FR-006) |
-| `resolved_at` | `datetime \| None` | no | Must not precede `created_at`. **Required** when `resolution_status` is `resolved`; **must be absent** otherwise |
+| `created_at` | `datetime` | yes | Timezone-aware. A **seeded draw** from the configured date window, made with the slot's own generator — never model output, never wall-clock (FR-006a) |
+| `resolved_at` | `datetime \| None` | no | `created_at` plus a seeded duration. Present when — and only when — `resolution_status` is `resolved`, by requirement rather than convention (FR-006b) |
 
 ### RecordQuality
 
@@ -124,6 +125,8 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `composition` | `Composition \| None` | `None` | When absent, the documented default distribution applies (FR-033) |
 | `turns.min` / `turns.max` | `int` | `4` / `12` | `2 ≤ min ≤ max` (FR-009e); each conversation's length is drawn **uniformly** from the range with the slot's own generator (FR-009d, FR-033) |
 | `language` | `str` | `en` | The language conversations are generated in; recorded in the manifest so a corpus states its language rather than inheriting it from the prompt (FR-009r) |
+| `time_window.from` / `.to` | `date` | last 180 days | The window ticket creation times are drawn from (FR-006a). `from` must precede `to` |
+| `resolution_duration.min` / `.max` | `duration` | `1h` / `14d` | Bounds on the seeded gap between creation and resolution (FR-006a) |
 | `coherence.threshold` | `float` | `0.8` | `0.0–1.0` (FR-009h) |
 | `coherence.max_discard_rate` | `float` | `0.10` | `coherence_below_threshold` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-009k) |
 | `privacy.max_discard_rate` | `float` | `0.005` | `privacy_finding` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-021a) |
@@ -173,6 +176,7 @@ Not persisted in the corpus; the unit of work the pipeline schedules. Every fiel
 | `position` | `int` | `[0, record_count)`; becomes `record_index` |
 | `assignment` | `TicketMetadata` fields | The four apportioned dimensions plus derived timestamps |
 | `turn_count` | `int` | Drawn **uniformly** from the configured range with the slot's own generator (FR-009d) |
+| `created_at` / `resolved_at` | `datetime` | Seeded draws from the configured window and duration bounds (FR-006a) — assigned before dispatch like every other seeded choice |
 | `subdomain` | `str` | Chosen from the prompt document's declared list with the slot's own generator (FR-008d); the elaborated scenario comes back on the record |
 | `attempt` | `int` | 0-based; part of the derivation key, so a retry re-rolls rather than repeating |
 

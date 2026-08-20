@@ -221,6 +221,16 @@ stated tolerance.
 - **FR-006**: Each record MUST carry ticket metadata comprising a topic category, a priority level, an
   originating channel, a resolution status, and the times the ticket was created and resolved, each
   constrained to an enumerated set where applicable.
+- **FR-006a**: Ticket timestamps MUST be **seeded choices, not model output and not wall-clock time**. The
+  configuration declares a date window; a record's creation time is drawn from that window by the same
+  position-derived generator as its other seeded choices (FR-012b), and its resolution time is that creation
+  time plus a seeded duration. Timestamps therefore reproduce exactly across runs of the same seed, and a
+  corpus can be stratified by date. Model-chosen timestamps would let narrative and metadata agree at the
+  cost of reproducibility; wall-clock times would record when the generator ran rather than anything about
+  the ticket.
+- **FR-006b**: A resolution time MUST be present when — and only when — the resolution status is *resolved*.
+  A ticket that was escalated, abandoned, or left unresolved has no resolution to time, and recording one
+  anyway would make the field mean different things in different records.
 - **FR-007**: The generator MUST validate every record it produces against the definition before writing it,
   and MUST discard and account for any record that does not conform.
 
@@ -277,8 +287,10 @@ stated tolerance.
   criterion during calibration. Weights MUST sum to 1, and a rubric that does not is a configuration error.
 - **FR-009h**: Records scoring below a configured coherence threshold MUST be discarded and accounted for
   under a distinct coherence discard reason. The threshold defaults to **0.8** on a normalized 0–1 scale.
-- **FR-009i**: Each accepted record MUST carry the coherence score it received, so the corpus can be
-  filtered or stratified by quality without re-judging it.
+- **FR-009i**: Each accepted record MUST carry the coherence score it received **and the identifier of the
+  rubric that produced it**, so the corpus can be filtered or stratified by quality without re-judging it.
+  The rubric identifier is not optional detail: the criteria and weights behind a score live in the rubric
+  (FR-009p), so a bare number cannot be compared across rubric versions or interpreted without one.
 - **FR-009j**: The identity and parameters of the judging model MUST be recorded in the manifest alongside
   those of the generating model, because the judge is a non-deterministic input that shapes which records
   survive (Constitution Principle II). The judge MAY be the same model as the generator, and is by default.
@@ -315,6 +327,16 @@ stated tolerance.
   model sampling is not reproducible in general; the manifest MUST therefore record the model identity, its
   parameters, and any sampling seed, so that a run that cannot be replayed can still be audited
   (Constitution Principle II).
+- **FR-010a**: **Equivalent** means: for every record position present in both corpora, the seeded choices
+  match exactly — assigned category, priority, channel, resolution status, subdomain, turn count, and ticket
+  timestamps — and each achieved composition lies within the configured tolerance of the other. Turn text is
+  excluded, and so is *which* positions are present: FR-009q makes survival through the coherence gate
+  non-deterministic, so two equivalent runs may write different numbers of records. Without this definition
+  "equivalent" cannot be tested, and SC-003 would rest on whichever reading an implementer chose.
+- **FR-010b**: Reproducibility is claimed **within a code revision**. Two runs of the same inputs at
+  different revisions are not required to be equivalent; the manifest records the revision of every segment
+  that produced a corpus (FR-015f, FR-025a), so a difference is explained rather than denied. Claiming
+  reproducibility across arbitrary revisions would be a promise no change to the generator could keep.
 - **FR-009r**: The configuration MUST carry the **language** conversations are generated in, defaulting to
   English, and it MUST be recorded in the manifest. Without an explicit setting the corpus language is
   whatever the prompt document happens to elicit, and can drift between runs with no record of having done
@@ -326,12 +348,15 @@ stated tolerance.
 - **FR-012a**: The generator MUST process multiple conversations concurrently, with the level of concurrency
   configurable, so that a release-scale corpus is achievable in a single run.
 - **FR-012b**: All seeded choices for a record — its turn count, its composition assignment, its subdomain
-  selection (FR-008d) — MUST be derived deterministically from the run seed and the record's position,
+  selection (FR-008d), and its ticket timestamps (FR-006a) — MUST be derived deterministically from the run seed and the record's position,
   assigned before the record is dispatched. The scenario the model elaborates within an assigned subdomain
   is model output, not a seeded choice, and is reproducible only in the structural sense FR-010 states. They MUST NOT be drawn from a shared sequential stream, so that output does not
   depend on the order in which concurrent work completes.
-- **FR-012c**: Records MUST be written in a deterministic order independent of completion order, so that two
-  runs with the same seed and configuration produce corpora comparable record by record.
+- **FR-012c**: Records MUST be written in **ascending record position**, independent of completion order, so
+  that two runs with the same seed and configuration produce corpora comparable record by record. A record's
+  serialization MUST also be deterministic — identical record content yields identical bytes — so that
+  comparison is a diff rather than a parse. This does **not** make two corpora byte-comparable as files: turn
+  text differs between runs by FR-010, and the comparison FR-010a defines is per position, not per byte.
 - **FR-012d**: The generator MUST retry transient failures and rate-limit responses with backoff, and MUST
   report retry counts in the run report so that a degraded provider is visible rather than merely slow.
 - **FR-012e**: The generator MUST bound its own request rate so a run cannot be throttled into failure by
@@ -705,6 +730,13 @@ stated tolerance.
   whether that is working; a high duplicate rate indicates the prompt needs broadening.
 - **The validation tool is a separate feature**: Checking datasets that external tools have postprocessed is
   feature 002. This feature validates only its own output, before writing it.
+- **Privacy scanning of an arbitrary file is deliberate shared surface with feature 002**: The standalone
+  scan command accepts any JSONL path, not only artifacts this project produced, because the approval loop
+  needs a cheap way to re-check a corpus after the exception file changes — re-running generation to verify
+  an approval would cost two model calls per record. That capability overlaps what feature 002 will need,
+  and the overlap is accepted on the expectation that **002 reuses this implementation rather than growing a
+  second one**. The boundary that still holds is ownership: this feature owns the blocking gate over its own
+  output; 002 owns judging a dataset of uncertain provenance as a whole.
 - **No released corpus is a deliverable here**: This feature ships the pipeline. Deciding to publish a
   particular corpus — with its datasheet and sampled human review — is a separate act governed by the
   constitution's release rules.
