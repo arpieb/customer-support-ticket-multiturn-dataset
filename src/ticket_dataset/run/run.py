@@ -13,7 +13,9 @@ refuses unless the detector floor was demonstrated for this run.
 """
 
 import asyncio
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,8 +40,15 @@ from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
 from ticket_dataset.privacy.exceptions_store import ExceptionStore, fingerprint
 from ticket_dataset.privacy.quarantine import Quarantine
 from ticket_dataset.privacy.registry import DetectorError, DetectorRegistry, Finding, ScanReport
+from ticket_dataset.run.budget import BudgetTracker
+from ticket_dataset.run.checkpoint import Checkpoint, input_fingerprints, select_resumable
 from ticket_dataset.run.enums import ADVISORY_CATEGORIES, BLOCKING_FLOOR, DiscardReason, RunOutcome
 from ticket_dataset.run.ids import new_run_id, record_id
+from ticket_dataset.run.manifest import ModelRecord, RunManifest, Segment, score_histogram
+from ticket_dataset.run.report import RunReport
+from ticket_dataset.run.retention import clean_after_success
+from ticket_dataset.run.revision import capture_revision, environment_overrides, hash_inputs
+from ticket_dataset.run.thresholds import discard_rate_breaches, should_stop_early
 from ticket_dataset.run.writer import OrderedWriter, claim_destination, publish
 from ticket_dataset.schema.record import TicketRecord
 from ticket_dataset.schema.version import SCHEMA_VERSION
@@ -64,6 +73,10 @@ class RunResult:
     quarantine_path: Path | None = None
     quarantine_count: int = 0
     artifact_path: Path | None = None
+    manifest_path: Path | None = None
+    report_path: Path | None = None
+    report: RunReport | None = None
+    resumed_count: int = 0
     failures: list[str] = field(default_factory=list)
 
     def scan_report(self) -> ScanReport:
@@ -93,8 +106,18 @@ class GenerationRun:
     findings: list[Finding] = field(default_factory=list)
     records_scanned: int = 0
     fields_scanned: int = 0
+    resumed_from: Checkpoint | None = None
+    fallbacks_used: dict[str, int] = field(default_factory=dict)
+    assigned_composition: dict = field(default_factory=dict)
+    requested_run_id: str | None = None
+    budget: BudgetTracker | None = None
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
+        # A run identifier supplied by the caller names a specific run to resume; one generated
+        # here is a fresh run instance (FR-003a). Keeping the distinction matters: a resume that
+        # searched for its own freshly minted identifier would never find anything.
+        self.requested_run_id = self.run_id or None
         self.run_id = self.run_id or new_run_id()
 
     @property
@@ -277,12 +300,42 @@ class GenerationRun:
             return None
         return record.model_dump(mode="json")
 
+    def fingerprints(self) -> dict[str, str]:
+        """What must match for a checkpoint to be applicable (FR-015e, FR-015h)."""
+        return input_fingerprints(self.config, self.seed, SCHEMA_VERSION)
+
+    async def resume(self) -> RunResult:
+        """Continue a checkpointed run (FR-015b–FR-015i).
+
+        Resuming truncates the staging file to its recorded length and continues from the next
+        position. Because writes are in strict position order the file is always a prefix of the
+        corpus, so no record is regenerated and — record identifiers being derived from
+        ``(run_id, position)`` — none can be reissued.
+        """
+        checkpoint = select_resumable(STAGING_ROOT, self.fingerprints(), self.requested_run_id)
+        checkpoint.assert_applicable(self.fingerprints())
+        self.run_id = checkpoint.run_id
+        self.resumed_from = checkpoint
+        return await self.execute()
+
     async def execute(self) -> RunResult:
         """Generate the corpus, then publish it only if every threshold held."""
         slots = self.prepare()
         self.staging_dir.mkdir(parents=True, exist_ok=True)
+        self.budget = BudgetTracker(budget=self.config.budget)
+
+        resumed = self.resumed_from
+        start_position = resumed.next_position if resumed else 0
         writer = OrderedWriter(path=self.staging_path)
-        writer.open()
+        writer.open(
+            start_position=start_position,
+            truncate_to=resumed.bytes_written if resumed else None,
+        )
+        if resumed:
+            # Continue the tallies rather than restarting them, so one manifest describes the
+            # whole corpus and its accounting reconciles across segments (FR-015c).
+            writer.records_written = resumed.records_written
+            slots = [slot for slot in slots if slot.position >= start_position]
         quarantine = Quarantine(path=self.staging_dir / "quarantine.jsonl")
         duplicates = DuplicateCounter()
         scores: list[float] = []
@@ -294,6 +347,11 @@ class GenerationRun:
                 # when the masked rendering alone is insufficient (FR-021b).
                 quarantine.add(outcome.blocked_record, outcome.blocking_findings)
             if outcome.record is not None:
+                served = outcome.record["generation"]["model_id"]
+                if served and served != self.config.models.generator.model_id:
+                    # A record rescued by a fallback stays in the corpus and names its actual
+                    # producer; the manifest reports how many each model served (FR-009n).
+                    self.fallbacks_used[served] = self.fallbacks_used.get(served, 0) + 1
                 duplicates.observe(
                     [
                         {"role": turn["role"], "content": turn["content"]}
@@ -305,6 +363,34 @@ class GenerationRun:
             else:
                 writer.skip(outcome.position)
 
+        self.assigned_composition = self._assigned_composition(slots)
+
+        stats = PipelineStats()
+        if resumed:
+            stats.responses = resumed.records_generated
+            stats.discards.update(
+                {DiscardReason(reason): count for reason, count in resumed.discards.items()}
+            )
+            stats.retries.update(resumed.retry_counts)
+
+        def checkpoint_now() -> None:
+            writer.flush()
+            Checkpoint(
+                run_id=self.run_id,
+                # Just after the last record actually written, so an interrupted run retries the
+                # slots its interruption killed rather than losing them (FR-009c, FR-015b).
+                next_position=writer.resume_position,
+                bytes_written=writer.bytes_written,
+                input_fingerprints=self.fingerprints(),
+                discards={reason.value: count for reason, count in stats.discards.items()},
+                retry_counts=dict(stats.retries),
+                duplicate_count=duplicates.duplicates,
+                records_generated=stats.records_generated,
+                records_written=writer.records_written,
+                resumes=(resumed.resumes + 1) if resumed else 0,
+                segments=list(resumed.segments) if resumed else [],
+            ).write(self.staging_dir)
+
         try:
             stats = await run_slots(
                 slots,
@@ -313,17 +399,22 @@ class GenerationRun:
                 max_attempts=self.config.max_attempts_per_slot,
                 consecutive_failure_limit=self.config.consecutive_failure_limit,
                 on_outcome=on_outcome,
+                stats=stats,
+                on_progress=self._progress_hook(checkpoint_now, stats),
             )
         except RunStopped:
             outcome_state = RunOutcome.STOPPED
-            stats = PipelineStats()
         finally:
             writer.close()
             quarantine.close()
+            checkpoint_now()
 
         failures = self._threshold_failures(stats)
         if failures and outcome_state is RunOutcome.COMPLETED:
             outcome_state = RunOutcome.FAILED
+
+        completed_at = datetime.now(UTC)
+        achieved = self._achieved_composition(writer.path)
 
         artifact: Path | None = None
         if outcome_state is RunOutcome.COMPLETED:
@@ -331,6 +422,65 @@ class GenerationRun:
             artifact = publish(
                 self.staging_path, self.config.output_path, gate_passed=self.gate_passed
             )
+
+        manifest = self._build_manifest(
+            stats=stats,
+            writer=writer,
+            duplicates=duplicates.duplicates,
+            scores=scores,
+            achieved=achieved,
+            completed_at=completed_at,
+            artifact=artifact,
+        )
+        # Written for every run, failed ones included: a corpus produced without a manifest is
+        # permanently unauditable, and a failed run's accounting is the point (FR-025).
+        manifest_dir = artifact.parent if artifact else self.staging_dir
+        manifest_path = manifest.write(manifest_dir)
+
+        report = RunReport(
+            run_id=self.run_id,
+            schema_version=SCHEMA_VERSION,
+            outcome=outcome_state,
+            records_generated=stats.records_generated,
+            records_written=writer.records_written,
+            discards={reason.value: count for reason, count in stats.discards.items()},
+            retry_counts=dict(stats.retries),
+            duplicate_count=duplicates.duplicates,
+            coherence_score_distribution=score_histogram(scores),
+            composition_requested=self.config.effective_composition.as_dict(),
+            composition_assigned=self.assigned_composition,
+            composition_achieved=achieved,
+            scan=self._scan_report(),
+            quarantine_path=str(quarantine.path) if quarantine.count else None,
+            quarantine_count=quarantine.count,
+            artifact_path=str(artifact) if artifact else None,
+            manifest_path=str(manifest_path),
+            failures=failures,
+            resumed_count=manifest.resumed_count,
+            budget=self.budget.as_dict() if self.budget else None,
+        )
+        report_path = report.write(manifest_dir, published=artifact is not None)
+
+        if outcome_state is RunOutcome.COMPLETED:
+            # The published artifact supersedes the staging copy and the checkpoint; the report
+            # and any quarantine survive, because quarantine cannot be reconstructed (FR-015i).
+            clean_after_success(self.staging_dir, self.staging_path)
+        else:
+            # Carry this run's segment into the checkpoint, so a later resume can assemble one
+            # manifest describing the whole corpus rather than only its final leg (FR-015c).
+            Checkpoint(
+                run_id=self.run_id,
+                next_position=writer.resume_position,
+                bytes_written=writer.bytes_written,
+                input_fingerprints=self.fingerprints(),
+                discards={reason.value: count for reason, count in stats.discards.items()},
+                retry_counts=dict(stats.retries),
+                duplicate_count=duplicates.duplicates,
+                records_generated=stats.records_generated,
+                records_written=writer.records_written,
+                resumes=manifest.resumed_count,
+                segments=[asdict(segment) for segment in manifest.segments],
+            ).write(self.staging_dir)
 
         return RunResult(
             run_id=self.run_id,
@@ -348,8 +498,163 @@ class GenerationRun:
             quarantine_path=quarantine.path if quarantine.count else None,
             quarantine_count=quarantine.count,
             artifact_path=artifact,
+            manifest_path=manifest_path,
+            report_path=report_path,
+            report=report,
+            resumed_count=manifest.resumed_count,
             failures=failures,
         )
+
+    def _scan_report(self) -> ScanReport:
+        return ScanReport(
+            findings=self.findings,
+            records_examined=self.records_scanned,
+            fields_examined=self.fields_scanned,
+            detectors_run=self.registry.names if self.registry else (),
+            covered_types=tuple(sorted(c.value for c in BLOCKING_FLOOR | ADVISORY_CATEGORIES)),
+        )
+
+    def _assigned_composition(self, slots: list[Slot]) -> dict[str, dict[str, float]]:
+        """What apportionment planned, before any discard (FR-031a).
+
+        Requested versus assigned exposes apportionment error; assigned versus achieved exposes
+        drift caused by discards. Without the middle term a tolerance failure has no attributable
+        cause.
+        """
+        if not slots:
+            return {}
+        return {
+            dimension: {
+                member: count / len(slots)
+                for member, count in sorted(
+                    Counter(getattr(slot, dimension) for slot in slots).items()
+                )
+            }
+            for dimension in ("category", "priority", "channel", "resolution_status")
+        }
+
+    def _achieved_composition(self, path: Path) -> dict[str, dict[str, float]]:
+        """What the written corpus actually contains."""
+        import json as _json
+
+        if not Path(path).exists():
+            return {}
+        records = [
+            _json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()
+        ]
+        if not records:
+            return {}
+        return {
+            dimension: {
+                member: count / len(records)
+                for member, count in sorted(
+                    Counter(record["metadata"][dimension] for record in records).items()
+                )
+            }
+            for dimension in ("category", "priority", "channel", "resolution_status")
+        }
+
+    def _build_manifest(
+        self,
+        *,
+        stats: PipelineStats,
+        writer: OrderedWriter,
+        duplicates: int,
+        scores: list[float],
+        achieved: dict[str, dict[str, float]],
+        completed_at: datetime,
+        artifact: Path | None,
+    ) -> RunManifest:
+        from hashlib import sha256
+
+        revision = capture_revision()
+        corpus = artifact if artifact else self.staging_path
+        digest = sha256(corpus.read_bytes()).hexdigest() if corpus.exists() else ""
+
+        segment = Segment(
+            code_revision=revision.as_dict(),
+            started_at=self.started_at.isoformat(),
+            completed_at=completed_at.isoformat(),
+            first_record_index=self.resumed_from.next_position if self.resumed_from else 0,
+            last_record_index=max(writer.records_written - 1, 0),
+        )
+        previous = (
+            [Segment(**entry) for entry in self.resumed_from.segments] if self.resumed_from else []
+        )
+
+        def model_record(spec) -> ModelRecord:
+            return ModelRecord(
+                model_id=spec.model_id,
+                effort=spec.effort,
+                max_tokens=spec.max_tokens,
+                thinking=spec.thinking,
+                sampling_seed=spec.sampling_seed,
+            )
+
+        return RunManifest(
+            run_id=self.run_id,
+            schema_version=SCHEMA_VERSION,
+            seed=self.seed,
+            config=self.config.model_dump(mode="json"),
+            code_revision=revision,
+            input_hashes=hash_inputs(
+                {
+                    "prompt_document": self.config.prompt_document,
+                    "rubric": self.config.rubric,
+                }
+            ),
+            models={
+                "generator": model_record(self.config.models.generator),
+                "judge": model_record(self.config.models.judge),
+            },
+            environment_overrides=environment_overrides(),
+            fallbacks_used=self.fallbacks_used,
+            started_at=self.started_at,
+            completed_at=completed_at,
+            records_generated=stats.records_generated,
+            records_written=writer.records_written,
+            discards={reason.value: count for reason, count in stats.discards.items()},
+            retry_counts=dict(stats.retries),
+            resumed_count=(self.resumed_from.resumes + 1) if self.resumed_from else 0,
+            segments=[*previous, segment],
+            duplicate_count=duplicates,
+            composition_requested=self.config.effective_composition.as_dict(),
+            composition_assigned=self.assigned_composition,
+            composition_achieved=achieved,
+            coherence_score_distribution=score_histogram(scores),
+            output_filename=corpus.name,
+            output_sha256=digest,
+            budget=self.budget.as_dict() if self.budget else None,
+        )
+
+    def _progress_hook(self, checkpoint_now, stats: PipelineStats):
+        """Checkpoint periodically, and stop early on a sustained threshold breach or budget.
+
+        Both stops preserve completed work: the run checkpoints and reports ``stopped`` rather
+        than failing, so resuming stays the operator's decision (FR-012f, FR-037).
+        """
+        written_at_last_checkpoint = 0
+
+        def hook() -> str | None:
+            nonlocal written_at_last_checkpoint
+            if self.budget is not None:
+                self.budget.record_call()
+                exhausted = self.budget.exhausted()
+                if exhausted is not None:
+                    checkpoint_now()
+                    return exhausted
+
+            if stats.responses - written_at_last_checkpoint >= self.config.checkpoint_interval:
+                written_at_last_checkpoint = stats.responses
+                checkpoint_now()
+
+            breaches = should_stop_early(self.config, stats.discards, stats.records_generated)
+            if breaches:
+                checkpoint_now()
+                return "; ".join(breach.describe() for breach in breaches)
+            return None
+
+        return hook
 
     def _threshold_failures(self, stats: PipelineStats) -> list[str]:
         """Run-level thresholds, evaluated over the FR-026a denominator.
@@ -361,29 +666,10 @@ class GenerationRun:
         generated = stats.records_generated
         if generated == 0:
             return []
-        failures: list[str] = []
-        checks = (
-            (
-                DiscardReason.PRIVACY_FINDING,
-                self.config.privacy.max_discard_rate,
-                "privacy",
-                "FR-021a",
-            ),
-            (
-                DiscardReason.COHERENCE_BELOW_THRESHOLD,
-                self.config.coherence.max_discard_rate,
-                "coherence",
-                "FR-009k",
-            ),
-        )
-        for reason, limit, label, requirement in checks:
-            rate = stats.discards.get(reason, 0) / generated
-            if rate > limit:
-                failures.append(
-                    f"{label} discard rate {rate:.2%} exceeds the configured {limit:.2%} "
-                    f"({stats.discards.get(reason, 0)} of {generated} responses, {requirement})"
-                )
-        return failures
+        return [
+            breach.describe()
+            for breach in discard_rate_breaches(self.config, stats.discards, generated)
+        ]
 
 
 def execute_run(config: GenerationConfig, seed: int, model_client: ModelClient) -> RunResult:
