@@ -40,15 +40,15 @@ match the structure in [plan.md](./plan.md).
 
 **Purpose**: Project initialization and dependency baseline
 
-- [ ] T001 Create the package skeleton `src/ticket_dataset/` with `schema/`, `config/`, `planning/`, `model/`, `generation/`, `privacy/detectors/`, `run/`, `cli/` subpackages, each with an `__init__.py`
-- [ ] T002 Add runtime dependencies `anthropic[aiohttp]`, `pydantic>=2,<3`, `datafog>=4.8,<5` (core install, NO extras), and `typer` to `pyproject.toml`, then run `uv sync` and commit the updated `uv.lock` in the same change (Constitution: Technology & Data Constraints)
-- [ ] T003 [P] Add dev dependencies `pytest`, `pytest-asyncio`, `pytest-cov` to `pyproject.toml` and configure `[tool.pytest.ini_options]` with `testpaths = ["tests"]` and `asyncio_mode = "auto"`
-- [ ] T004 [P] Configure `ruff` for lint and format in `pyproject.toml`
-- [ ] T005 [P] Create the test tree `tests/contract/`, `tests/integration/`, `tests/unit/`, `tests/fixtures/responses/`, `tests/fixtures/configs/`, `tests/fixtures/manifests/`, `tests/fixtures/canaries/` with `__init__.py` where needed
-- [ ] T006 Register the CLI entry point `ticket-dataset = "ticket_dataset.cli.main:app"` under `[project.scripts]` in `pyproject.toml`
-- [ ] T007 [P] Create `data/raw/`, `data/interim/`, and `data/release/` with `.gitkeep` files, so release-path artifacts are distinguishable from scratch work by location alone (FR-013, FR-015)
-- [ ] T008 [P] Add a `datafog` install guard in `tests/contract/test_offline_install.py` asserting `spacy` and `torch` are NOT importable, so the offline guarantee cannot regress via a stray extra (FR-024, quickstart Setup)
-- [ ] T009 Add `.github/workflows/ci.yml` running on push and pull request: `uv sync --frozen`, `uv run ruff check .`, `uv run ruff format --check .`, then `uv run pytest`, pinned to the `requires-python` floor. **No job may require model credentials** — the whole suite runs against `FakeModelClient`, so CI stays free and offline. Landing this in Phase 1 rather than Phase 7 is deliberate: the drift checks and the offline guard are only worth anything if they run from the moment they exist
+- [X] T001 Create the package skeleton `src/ticket_dataset/` with `schema/`, `config/`, `planning/`, `model/`, `generation/`, `privacy/detectors/`, `run/`, `cli/` subpackages, each with an `__init__.py`
+- [X] T002 Add runtime dependencies `anthropic[aiohttp]`, `pydantic>=2,<3`, `datafog>=4.8,<5` (core install, NO extras), and `typer` to `pyproject.toml`, then run `uv sync` and commit the updated `uv.lock` in the same change (Constitution: Technology & Data Constraints)
+- [X] T003 [P] Add dev dependencies `pytest`, `pytest-asyncio`, `pytest-cov` to `pyproject.toml` and configure `[tool.pytest.ini_options]` with `testpaths = ["tests"]` and `asyncio_mode = "auto"`
+- [X] T004 [P] Configure `ruff` for lint and format in `pyproject.toml`
+- [X] T005 [P] Create the test tree `tests/contract/`, `tests/integration/`, `tests/unit/`, `tests/fixtures/responses/`, `tests/fixtures/configs/`, `tests/fixtures/manifests/`, `tests/fixtures/canaries/` with `__init__.py` where needed
+- [X] T006 Register the CLI entry point `ticket-dataset = "ticket_dataset.cli.main:app"` under `[project.scripts]` in `pyproject.toml`
+- [X] T007 [P] Create `data/raw/`, `data/interim/`, and `data/release/` with `.gitkeep` files, so release-path artifacts are distinguishable from scratch work by location alone (FR-013, FR-015)
+- [X] T008 [P] Add a `datafog` install guard in `tests/contract/test_offline_install.py` asserting `spacy` and `torch` are NOT importable, so the offline guarantee cannot regress via a stray extra (FR-024, quickstart Setup)
+- [X] T009 Add `.github/workflows/ci.yml` running on push and pull request: `uv sync --frozen`, `uv run ruff check .`, `uv run ruff format --check .`, then `uv run pytest`, pinned to the `requires-python` floor. **No job may require model credentials** — the whole suite runs against `FakeModelClient`, so CI stays free and offline. Landing this in Phase 1 rather than Phase 7 is deliberate: the drift checks and the offline guard are only worth anything if they run from the moment they exist
 
 ---
 
@@ -61,40 +61,40 @@ schema to exist before any producer code, so nothing in Phase 3+ may start until
 
 ### Record contract
 
-- [ ] T010 [P] Define `Role` (`customer`, `agent`), `Category`, `Priority`, `Channel`, and `ResolutionStatus` closed enumerations in `src/ticket_dataset/schema/enums.py` (FR-005, FR-006)
-- [ ] T011 [P] Define `PIICategory` (blocking floor `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`; advisory `IP_ADDRESS`, `POSTAL_CODE`), `DiscardReason` (the nine members FR-026b enumerates), `Verdict`, and `RunOutcome` (`completed`, `refused`, `failed`, `stopped`) in `src/ticket_dataset/run/enums.py` (FR-018, FR-018b, FR-026b, FR-036b)
-- [ ] T012 Define `SCHEMA_VERSION = "1.0.0"` and semver parsing in `src/ticket_dataset/schema/version.py` (FR-002)
-- [ ] T013 Define `TicketRecord`, `ConversationTurn`, `TicketMetadata`, `RecordQuality`, and `GenerationInfo` Pydantic models in `src/ticket_dataset/schema/record.py` per [data-model.md](./data-model.md), including the `subdomain` and `scenario` fields and a validator enforcing that `resolved_at` is present exactly when `resolution_status` is `resolved` (FR-003, FR-004, FR-006b, FR-008b, FR-009i)
-- [ ] T014 Implement `export_json_schema()` in `src/ticket_dataset/schema/export.py`, returning the Pydantic export **normalized for comparison**: `$id` and `title` set from `SCHEMA_VERSION`, `description` keys stripped at every level, and object keys sorted — prose descriptions are documentation, not contract (FR-001)
-- [ ] T015 Add a contract test in `tests/contract/test_schema_export.py` asserting `export_json_schema()` equals the committed `specs/001-ticket-generation-pipeline/contracts/record.schema.json` **passed through the same normalization**, so field names, types, enums, required sets, and the `resolved_at` conditional are compared while prose is not. A structural change fails the test; an edited description does not, and a schema change cannot land without the contract changing in the same commit (Constitution I)
-- [ ] T016 [P] Add edge-case tests in `tests/unit/test_record_model.py` covering the `resolved_at` conditional in both directions, contiguous turn indices, customer-first alternation, whitespace-only turn content, and non-Latin/emoji/RTL content as valid (FR-004, FR-006b, FR-009, spec Edge Cases)
+- [X] T010 [P] Define `Role` (`customer`, `agent`), `Category`, `Priority`, `Channel`, and `ResolutionStatus` closed enumerations in `src/ticket_dataset/schema/enums.py` (FR-005, FR-006)
+- [X] T011 [P] Define `PIICategory` (blocking floor `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`; advisory `IP_ADDRESS`, `POSTAL_CODE`), `DiscardReason` (the nine members FR-026b enumerates), `Verdict`, and `RunOutcome` (`completed`, `refused`, `failed`, `stopped`) in `src/ticket_dataset/run/enums.py` (FR-018, FR-018b, FR-026b, FR-036b)
+- [X] T012 Define `SCHEMA_VERSION = "1.0.0"` and semver parsing in `src/ticket_dataset/schema/version.py` (FR-002)
+- [X] T013 Define `TicketRecord`, `ConversationTurn`, `TicketMetadata`, `RecordQuality`, and `GenerationInfo` Pydantic models in `src/ticket_dataset/schema/record.py` per [data-model.md](./data-model.md), including the `subdomain` and `scenario` fields and a validator enforcing that `resolved_at` is present exactly when `resolution_status` is `resolved` (FR-003, FR-004, FR-006b, FR-008b, FR-009i)
+- [X] T014 Implement `export_json_schema()` in `src/ticket_dataset/schema/export.py`, returning the Pydantic export **normalized for comparison**: `$id` and `title` set from `SCHEMA_VERSION`, `description` keys stripped at every level, and object keys sorted — prose descriptions are documentation, not contract (FR-001)
+- [X] T015 Add a contract test in `tests/contract/test_schema_export.py` asserting `export_json_schema()` equals the committed `specs/001-ticket-generation-pipeline/contracts/record.schema.json` **passed through the same normalization**, so field names, types, enums, required sets, and the `resolved_at` conditional are compared while prose is not. A structural change fails the test; an edited description does not, and a schema change cannot land without the contract changing in the same commit (Constitution I)
+- [X] T016 [P] Add edge-case tests in `tests/unit/test_record_model.py` covering the `resolved_at` conditional in both directions, contiguous turn indices, customer-first alternation, whitespace-only turn content, and non-Latin/emoji/RTL content as valid (FR-004, FR-006b, FR-009, spec Edge Cases)
 
 ### Configuration
 
-- [ ] T017 Define `GenerationConfig`, `Composition`, `ModelSpec`, `Budget`, and `TimeWindow` models in `src/ticket_dataset/config/models.py` per [data-model.md](./data-model.md) (FR-008, FR-009r, FR-012f)
-- [ ] T018 [P] Define the documented defaults — distribution per dimension, 4–12 turn range, thresholds 0.8 / 10% / 0.5% / ±2pp, concurrency and rate bounds — in `src/ticket_dataset/config/defaults.py`, matching the normative table in FR-033
-- [ ] T019 Implement `load_config()` in `src/ticket_dataset/config/loader.py` performing **total** validation and raising `ConfigError` carrying *every* problem rather than the first (FR-011)
-- [ ] T020 [P] Add unit tests in `tests/unit/test_config_loader.py` for each refusal: zero records, inverted turn range, `turns.min` below 2, threshold outside `[0,1]`, output path outside `data/release/`, and multiple simultaneous problems reported together (FR-009e, FR-011, spec Edge Cases)
+- [X] T017 Define `GenerationConfig`, `Composition`, `ModelSpec`, `Budget`, and `TimeWindow` models in `src/ticket_dataset/config/models.py` per [data-model.md](./data-model.md) (FR-008, FR-009r, FR-012f)
+- [X] T018 [P] Define the documented defaults — distribution per dimension, 4–12 turn range, thresholds 0.8 / 10% / 0.5% / ±2pp, concurrency and rate bounds — in `src/ticket_dataset/config/defaults.py`, matching the normative table in FR-033
+- [X] T019 Implement `load_config()` in `src/ticket_dataset/config/loader.py` performing **total** validation and raising `ConfigError` carrying *every* problem rather than the first (FR-011)
+- [X] T020 [P] Add unit tests in `tests/unit/test_config_loader.py` for each refusal: zero records, inverted turn range, `turns.min` below 2, threshold outside `[0,1]`, output path outside `data/release/`, and multiple simultaneous problems reported together (FR-009e, FR-011, spec Edge Cases)
 
 ### Deterministic planning
 
-- [ ] T021 Implement `slot_random(seed, position, attempt)` in `src/ticket_dataset/planning/seeding.py` using counter-based `blake2b` derivation (FR-012b, research R2)
-- [ ] T022 [P] Add unit tests in `tests/unit/test_seeding.py` asserting draws are identical regardless of call order and that a different attempt re-rolls (FR-012b, SC-013)
-- [ ] T023 Implement largest-remainder apportionment in `src/ticket_dataset/planning/apportion.py`, including the achievability precondition `tolerance >= 100 / record_count` and `UnsatisfiableCompositionError` naming the dimension and reason (FR-030, FR-031b, FR-032)
-- [ ] T024 [P] Add unit tests in `tests/unit/test_apportion.py` asserting per-member error stays below one record, and covering each unsatisfiable condition FR-032 enumerates
-- [ ] T025 Implement `Slot` construction in `src/ticket_dataset/planning/slots.py`: apportioned assignment, uniform turn count, seeded subdomain, and seeded `created_at`/`resolved_at` from the configured window and duration bounds (FR-006a, FR-008d, FR-009d, FR-012b)
-- [ ] T026 [P] Add unit tests in `tests/unit/test_slots.py` asserting every slot field is a pure function of `(seed, position)`, that turn counts are uniformly distributed over the range, and that `resolved_at` is absent unless the assignment is `resolved` (FR-006a, FR-006b, FR-009d)
+- [X] T021 Implement `slot_random(seed, position, attempt)` in `src/ticket_dataset/planning/seeding.py` using counter-based `blake2b` derivation (FR-012b, research R2)
+- [X] T022 [P] Add unit tests in `tests/unit/test_seeding.py` asserting draws are identical regardless of call order and that a different attempt re-rolls (FR-012b, SC-013)
+- [X] T023 Implement largest-remainder apportionment in `src/ticket_dataset/planning/apportion.py`, including the achievability precondition `tolerance >= 100 / record_count` and `UnsatisfiableCompositionError` naming the dimension and reason (FR-030, FR-031b, FR-032)
+- [X] T024 [P] Add unit tests in `tests/unit/test_apportion.py` asserting per-member error stays below one record, and covering each unsatisfiable condition FR-032 enumerates
+- [X] T025 Implement `Slot` construction in `src/ticket_dataset/planning/slots.py`: apportioned assignment, uniform turn count, seeded subdomain, and seeded `created_at`/`resolved_at` from the configured window and duration bounds (FR-006a, FR-008d, FR-009d, FR-012b)
+- [X] T026 [P] Add unit tests in `tests/unit/test_slots.py` asserting every slot field is a pure function of `(seed, position)`, that turn counts are uniformly distributed over the range, and that `resolved_at` is absent unless the assignment is `resolved` (FR-006a, FR-006b, FR-009d)
 
 ### Identity, model seam, and errors
 
-- [ ] T027 Implement fresh-per-run `run_id` and UUIDv5 `record_id` derivation in `src/ticket_dataset/run/ids.py` (FR-003a, FR-003b)
-- [ ] T028 [P] Add unit tests in `tests/unit/test_ids.py` asserting a rerun yields a different `run_id`, a resume reuses one, and identifiers are stable per `(run_id, position)` (FR-003a, FR-003b, FR-015b)
-- [ ] T029 Define the `ModelClient` protocol, `ModelRole`, and `ModelResponse` (carrying the **served** model id, stop reason, usage, retries) in `src/ticket_dataset/model/client.py` per [contracts/model-io.md](./contracts/model-io.md)
-- [ ] T030 Implement `FakeModelClient` in `src/ticket_dataset/model/fake.py` with scripted responses covering valid output, malformed JSON, refusal, rate-limit error, and PII-bearing content — the fixture every offline test depends on
-- [ ] T031 [P] Implement the token-bucket rate limiter in `src/ticket_dataset/model/limiter.py`, shared across both model roles (FR-012e)
-- [ ] T032 [P] Add unit tests in `tests/unit/test_limiter.py` asserting the configured requests-per-minute bound holds under concurrency
-- [ ] T033 [P] Define the exception hierarchy in `src/ticket_dataset/errors.py`: `TicketDatasetError` plus the eight subclasses in [contracts/python-api.md](./contracts/python-api.md), none of which may carry a matched PII value
-- [ ] T034 [P] Define the `GeneratedConversation` and `JudgeVerdict` wire models in `src/ticket_dataset/model/wire.py`, deliberately excluding provenance fields so the model cannot write them (contracts/model-io.md)
+- [X] T027 Implement fresh-per-run `run_id` and UUIDv5 `record_id` derivation in `src/ticket_dataset/run/ids.py` (FR-003a, FR-003b)
+- [X] T028 [P] Add unit tests in `tests/unit/test_ids.py` asserting a rerun yields a different `run_id`, a resume reuses one, and identifiers are stable per `(run_id, position)` (FR-003a, FR-003b, FR-015b)
+- [X] T029 Define the `ModelClient` protocol, `ModelRole`, and `ModelResponse` (carrying the **served** model id, stop reason, usage, retries) in `src/ticket_dataset/model/client.py` per [contracts/model-io.md](./contracts/model-io.md)
+- [X] T030 Implement `FakeModelClient` in `src/ticket_dataset/model/fake.py` with scripted responses covering valid output, malformed JSON, refusal, rate-limit error, and PII-bearing content — the fixture every offline test depends on
+- [X] T031 [P] Implement the token-bucket rate limiter in `src/ticket_dataset/model/limiter.py`, shared across both model roles (FR-012e)
+- [X] T032 [P] Add unit tests in `tests/unit/test_limiter.py` asserting the configured requests-per-minute bound holds under concurrency
+- [X] T033 [P] Define the exception hierarchy in `src/ticket_dataset/errors.py`: `TicketDatasetError` plus the eight subclasses in [contracts/python-api.md](./contracts/python-api.md), none of which may carry a matched PII value
+- [X] T034 [P] Define the `GeneratedConversation` and `JudgeVerdict` wire models in `src/ticket_dataset/model/wire.py`, deliberately excluding provenance fields so the model cannot write them (contracts/model-io.md)
 
 ---
 
