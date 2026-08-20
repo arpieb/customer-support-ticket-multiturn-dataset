@@ -349,6 +349,12 @@ stated tolerance.
   naming the specific problem, rather than producing partial output.
 - **FR-012**: The generator MUST write records incrementally so that memory does not grow with corpus size
   and progress is observable during a long run.
+- **FR-012g**: "Observable" MUST mean **reported to the operator while the run proceeds** — records
+  completed against the target, elapsed time, and the discard count so far — not merely inferable from
+  the output file growing. An operator watching a long run needs to distinguish a working run from a hung
+  one, and that is the question progress reporting exists to answer; a corpus that can be tailed does not
+  answer it. Reporting MUST go to the diagnostic stream, never to the machine-readable output, and MUST be
+  suppressible for unattended runs.
 - **FR-012a**: The generator MUST process multiple conversations concurrently, with the level of concurrency
   configurable, so that a release-scale corpus is achievable in a single run.
 - **FR-012b**: All seeded choices for a record — its turn count, its composition assignment, its subdomain
