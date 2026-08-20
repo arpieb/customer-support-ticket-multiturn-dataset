@@ -113,6 +113,140 @@ def generate(
     raise typer.Exit(_OUTCOME_STATUS[result.outcome])
 
 
+privacy_app = typer.Typer(help="Inspect and manage the privacy gate.")
+app.add_typer(privacy_app, name="privacy")
+
+
+@privacy_app.command("scan")
+def privacy_scan(
+    path: Annotated[Path, typer.Argument(help="A JSONL corpus or staging file to examine.")],
+    exceptions: Annotated[Path, typer.Option(help="Approved-exception fingerprints.")] = Path(
+        "privacy/exceptions.json"
+    ),
+    report: Annotated[Path | None, typer.Option(help="Write the report to a file.")] = None,
+) -> None:
+    """Scan an existing artifact, independently of a generation run.
+
+    The path is deliberately unrestricted, which is shared surface with feature 002 (spec
+    Assumptions): re-running generation to verify one approval would cost two model calls per
+    record. 002 is expected to reuse this rather than grow a second scanner.
+    """
+    import json as _json
+
+    from ticket_dataset.privacy.canaries import FLOOR_CANARIES
+    from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
+    from ticket_dataset.privacy.exceptions_store import ExceptionStore, fingerprint
+    from ticket_dataset.privacy.registry import DetectorRegistry
+
+    if not path.exists():
+        _note(f"{path} does not exist")
+        raise typer.Exit(EXIT_REFUSED)
+
+    registry = DetectorRegistry()
+    registry.register(DataFogDetector())
+    registry.approvals = ExceptionStore.load(exceptions).fingerprints
+    registry.fingerprinter = fingerprint
+    try:
+        registry.assert_floor_covered(FLOOR_CANARIES)
+    except TicketDatasetError as error:
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    records = [_json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    result = registry.scan_records(records)
+    rendered = {
+        "path": str(path),
+        # Counts distinguish a clean result from a scan that examined nothing (FR-023).
+        "records_examined": result.records_examined,
+        "fields_examined": result.fields_examined,
+        "scanned_fields": list(result.scanned_fields),
+        "detectors_run": list(result.detectors_run),
+        "covered_types": list(result.covered_types),
+        "declared_gaps": list(result.declared_gaps),
+        "findings": [
+            {
+                "record_id": finding.record_id,
+                "field": finding.field,
+                "category": finding.category.value,
+                "detector": finding.detector,
+                "status": finding.status.value,
+                "masked": finding.masked,
+            }
+            for finding in result.findings
+        ],
+        "blocking": len(result.blocking),
+    }
+    output = _json.dumps(rendered, indent=2)
+    if report is not None:
+        report.write_text(output + "\n")
+        _note(f"wrote {report}")
+    else:
+        print(output)
+    raise typer.Exit(EXIT_OK if not result.blocking else EXIT_FAILED)
+
+
+@privacy_app.command("approve")
+def privacy_approve(
+    category: Annotated[str, typer.Option(help="The PII category of the finding.")],
+    reason: Annotated[str, typer.Option(help="Why this value is legitimately synthetic.")],
+    by: Annotated[str, typer.Option("--by", help="Who is approving. Recorded, not checked.")],
+    value: Annotated[
+        str | None, typer.Option(help="The value; fingerprinted, never stored.")
+    ] = None,
+    from_quarantine: Annotated[
+        Path | None, typer.Option("--from-quarantine", help="Read the value from quarantine.")
+    ] = None,
+    record_id: Annotated[str | None, typer.Option(help="With --from-quarantine.")] = None,
+    field_name: Annotated[
+        str | None, typer.Option("--field", help="With --from-quarantine, e.g. turns[3].content.")
+    ] = None,
+    exceptions: Annotated[Path, typer.Option(help="Where approvals are recorded.")] = Path(
+        "privacy/exceptions.json"
+    ),
+) -> None:
+    """Record a reviewed finding as an approved exception (FR-022, FR-022a, FR-022b)."""
+    from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
+    from ticket_dataset.privacy.exceptions_store import ExceptionStore
+    from ticket_dataset.privacy.quarantine import Quarantine
+    from ticket_dataset.run.enums import PIICategory
+
+    try:
+        pii_category = PIICategory(category.upper())
+    except ValueError as error:
+        _note(f"unknown category {category!r}; expected one of {[c.value for c in PIICategory]}")
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    if from_quarantine is not None:
+        if not (record_id and field_name):
+            _note("--from-quarantine needs --record-id and --field")
+            raise typer.Exit(EXIT_REFUSED)
+        # Read in place, so the reviewer never has to retype or paste the value.
+        value = Quarantine(path=from_quarantine).find(record_id, field_name)
+        if value is None:
+            _note(f"no such finding in {from_quarantine}: {record_id} / {field_name}")
+            raise typer.Exit(EXIT_REFUSED)
+    if not value:
+        _note("supply --value, or --from-quarantine with --record-id and --field")
+        raise typer.Exit(EXIT_REFUSED)
+
+    detector = DataFogDetector()
+    store = ExceptionStore.load(exceptions)
+    try:
+        entry = store.approve(
+            category=pii_category,
+            value=value,
+            reason=reason,
+            approved_by=by,
+            scan_reason=lambda text: detector.scan(text),
+        )
+    except (TicketDatasetError, ValueError) as error:
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+    store.save()
+    _note(f"approved {entry.fingerprint[:12]}… ({entry.category}) by {entry.approved_by}")
+    raise typer.Exit(EXIT_OK)
+
+
 @app.command("schema")
 def schema_export(
     out: Annotated[Path | None, typer.Option(help="Write to a file instead of stdout.")] = None,

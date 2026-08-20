@@ -34,10 +34,15 @@ def _config(tmp_path: Path, label: str) -> GenerationConfig:
     )
 
 
+def _output(result) -> Path:
+    """Where the corpus ended up: the published artifact on success, staging otherwise."""
+    return result.artifact_path or result.staging_path
+
+
 async def _corpus(tmp_path: Path, label: str) -> tuple[str, dict[int, dict]]:
     run = GenerationRun(config=_config(tmp_path, label), seed=SEED, model_client=FakeModelClient())
     result = await run.execute()
-    records = [json.loads(line) for line in result.staging_path.read_text().splitlines()]
+    records = [json.loads(line) for line in _output(result).read_text().splitlines()]
     return result.run_id, {record["record_index"]: record for record in records}
 
 

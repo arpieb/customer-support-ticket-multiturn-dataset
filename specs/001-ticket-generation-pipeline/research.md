@@ -228,7 +228,10 @@ telemetry off rather than trusting an upstream default to stay unchanged.
 **Decision**: The FR-018 blocking floor is exactly the four high-precision regex types: `EMAIL`, `PHONE`,
 `CREDIT_CARD`, `US_SSN` — named at identifier-type level, because "government identifiers" would promise
 coverage of non-US identifiers that nothing detects. `IP_ADDRESS` and `POSTAL_CODE` are registered as advisory,
-non-blocking. Non-US government identifiers, full postal address, and bank account are **declared gaps**;
+non-blocking — **postal code is registered in neither tier**, on the same ground DATE was excluded: it
+matches ordinary order and account numbers, and a detector firing on nearly every record trains
+maintainers to ignore the report. Non-US government identifiers, postal code, full postal address, and
+bank account are **declared gaps**;
 every run report enumerates covered and uncovered types alike, at the same specificity as the floor, so a
 later detector widens coverage visibly rather than silently (FR-019). Generic `DATE` detection stays off — every record carries legitimate ticket timestamps, and a
 detector that fires on nearly every record trains maintainers to ignore the report.

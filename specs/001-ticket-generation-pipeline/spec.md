@@ -724,6 +724,11 @@ stated tolerance.
   not about its shape. The quarantine artifact is never committed and is never dataset output, and the
   approved-exception file continues to store fingerprints rather than values, so nothing identifier-shaped
   accumulates in the repository itself.
+- **Reserved-for-fiction values are not personal data**: An address at `example.com` or a number in the
+  `555-0100`–`555-0199` range is fabricated by construction — the standards reserving those ranges
+  guarantee no real person holds one. Treating them as findings would fail every run on a corpus whose
+  conversations mention an email address, which is most of them. They are exempted by range and still
+  reported, so the exemption is visible rather than silent (FR-021c).
 - **The blocking floor is bounded by what offline detection can do**: The mandatory types are those an
   offline pattern detector covers with high precision. Non-US government identifiers, full postal addresses,
   bank account numbers, and person names are NOT gated — reliable offline detection of them is unavailable —

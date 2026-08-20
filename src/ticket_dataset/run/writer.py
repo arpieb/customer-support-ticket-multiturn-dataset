@@ -11,9 +11,10 @@ records are ever held, so memory does not grow with the corpus.
 artifact is placed there. Checking only at the start lets two concurrent runs both pass and the
 second silently replace the first's output at the end.
 
-Note what this module does *not* do: there is no move into the release path. Output stops at the
-staging file until the privacy gate exists (Phase 4), which is how the constitution's
-blocking-scan requirement is enforced structurally rather than remembered.
+The move into the release path lives here too, and it **refuses without the privacy gate**. That
+is the structural form of the constitution's blocking-scan requirement: not a rule someone has to
+remember, but a function that cannot be called successfully unless the gate demonstrated its
+coverage for this run.
 """
 
 import json
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ticket_dataset.errors import OutputPathExistsError
+from ticket_dataset.errors import OutputPathExistsError, ReleaseGateError
 
 
 def serialize(record: dict[str, Any]) -> str:
@@ -132,3 +133,29 @@ def verify_claim(path: Path) -> None:
         raise OutputPathExistsError(
             f"{path} was created by another run while this one was generating (FR-014a)."
         )
+
+
+def publish(staging: Path, destination: Path, *, gate_passed: bool) -> Path:
+    """Move a finished corpus into the release path (FR-015, FR-016, FR-018a).
+
+    ``gate_passed`` is the registry's report that it demonstrated floor coverage for this run.
+    Refusing without it is what makes "no unscanned output reaches the release path" a property
+    of the code rather than a discipline: there is no other way to put a file there.
+
+    The move itself is a single rename, so the artifact appears in the release path complete or
+    not at all — a partial write, a crash, or a naming mistake cannot leave something that looks
+    finished (FR-015).
+    """
+    if not gate_passed:
+        raise ReleaseGateError(
+            "refusing to publish: the privacy detector floor was not demonstrated for this run. "
+            "Nothing may reach the release path that the gate has not examined "
+            "(Constitution IV, FR-016, FR-018a)."
+        )
+    staging, destination = Path(staging), Path(destination)
+    if not staging.exists():
+        raise FileNotFoundError(f"nothing to publish: {staging} does not exist")
+    verify_claim(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(staging, destination)
+    return destination

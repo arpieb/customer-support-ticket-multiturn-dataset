@@ -39,6 +39,14 @@ class OutputPathExistsError(TicketDatasetError):
     """
 
 
+class ReleaseGateError(TicketDatasetError):
+    """An attempt to publish without the privacy gate having demonstrated coverage.
+
+    Raised by the publish path rather than checked by a caller, so "no unscanned output reaches
+    the release path" is a property of the code (Constitution IV, FR-016, FR-018a).
+    """
+
+
 class CheckpointMismatchError(TicketDatasetError):
     """Resume attempted with changed config, seed, prompt document, or rubric (FR-015e)."""
 

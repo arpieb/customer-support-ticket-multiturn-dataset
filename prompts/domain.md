@@ -50,12 +50,22 @@ compared across runs while the specific situation stays varied (FR-008d, FR-012b
 
 Every value in these conversations is **fabricated**. Do not write real email addresses, real
 phone numbers, real payment card numbers, or real government identifiers, and do not reproduce
-any real person's details. Where a conversation needs an identifier-shaped value, invent an
-obviously synthetic one — an `@example.com` address, a `555-01xx` phone number, an order number
-like `ORD-4417`.
+any real person's details.
 
-This is the primary control on privacy; the automated scan is a safety net that confirms it
-held, not a substitute for it (spec Assumptions).
+Where a conversation needs an identifier-shaped value, take it from a range reserved for fiction,
+because those ranges cannot belong to anyone:
+
+- **Email** — `@example.com`, `@example.org`, `@example.net`, or any `.test` / `.invalid` domain.
+- **Phone** — a full ten-digit number whose exchange is `555` and whose line is `0100`–`0199`,
+  such as `212-555-0142`. A seven-digit `555-0142` is not recognised as a phone number at all.
+- **Payment card** — the published network test numbers, such as `4111 1111 1111 1111`.
+- **Order and account numbers** — invent freely: `ORD-4417`, `AC-99812`.
+
+Never write a Social Security number or other government identifier, even a made-up one. No range
+is reserved for fiction there, so any such value blocks the record and it cannot be exempted.
+
+This is the primary control on privacy; the automated scan is a safety net that confirms it held,
+not a substitute for it (spec Assumptions).
 
 ## Tone and variation
 

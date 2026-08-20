@@ -37,6 +37,10 @@ class SlotOutcome:
     retries: int = 0
     model_id: str = ""
     judge_model_id: str = ""
+    #: Set when a privacy finding blocked the record, so the run can quarantine it for review
+    #: (FR-021b). Never written to the corpus.
+    blocked_record: dict | None = None
+    blocking_findings: list = field(default_factory=list)
 
     @property
     def accepted(self) -> bool:
