@@ -25,7 +25,7 @@ Three families live here and should not be confused:
 | `Priority` | `low`, `normal`, `high`, `urgent` | FR-006 |
 | `Channel` | `email`, `chat`, `phone`, `web_form` | FR-006 |
 | `ResolutionStatus` | `resolved`, `unresolved`, `escalated`, `abandoned` | FR-006 |
-| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory (reported, never blocking): `IP_ADDRESS`, `POSTAL_CODE` | FR-018 floor at identifier-type level; the advisory tier and per-category blocking status are required by FR-018b; R8 |
+| `PIICategory` | Blocking floor: `EMAIL`, `PHONE`, `CREDIT_CARD`, `US_SSN`. Advisory (reported, never blocking): `IP_ADDRESS` | FR-018 floor at identifier-type level; advisory tier per FR-018b; R8. Postal code is excluded from both tiers — it matches ordinary order and account numbers, and joins the declared gaps |
 | `DiscardReason` | `structural_invalid`, `turn_count_out_of_range`, `schema_invalid`, `coherence_below_threshold`, `unjudgeable`, `privacy_finding`, `detector_error`, `model_refusal`, `attempts_exhausted` | **FR-026b** enumerates this closed set normatively; each member maps to exactly one requirement. `detector_error` is deliberately distinct from `privacy_finding`: a malfunctioning detector is neither a clean result nor a real identifier (FR-017a) |
 | `Verdict` | `pass`, `fail` | FR-036 |
 | `RunOutcome` | `completed`, `refused`, `failed`, `stopped` | FR-036b. Four states because they call for different responses: nothing spent, output that did not qualify, and resumable work are not the same fact |
@@ -269,7 +269,7 @@ inference the tool makes on its own (FR-015g).
 
 | Entity | Fields | Rules |
 |--------|--------|-------|
-| `PrivacyFinding` | `record_id`, `field`, `category`, `detector`, `status`, `masked` | **Never** carries the matched value (FR-020). `masked` is a deterministic, irreversible rendering that preserves at most the non-identifying remainder — domain for an email, issuer range for a card, shape and length otherwise (FR-020a) |
+| `PrivacyFinding` | `record_id`, `field`, `category`, `detector`, `status`, `masked` | **Never** carries the matched value (FR-020). `masked` is a deterministic, irreversible rendering preserving at most the non-identifying remainder — domain for an email, issuer range for a card, shape and length otherwise (FR-020a). `status` is `blocking`, `exempt_by_range` (FR-021c), or `approved` (FR-022) |
 | `ApprovedException` | `fingerprint`, `category`, `reason`, `approved_by`, `approved_on` | `sha256(category + ":" + normalized_value)`; committed at `privacy/exceptions.json`; never the raw value (FR-022, research R9). Self-approval is permitted and recorded; approvals do not expire but every active one must appear in a release datasheet (FR-022a). The `reason` is itself scanned and refused if it trips a detector (FR-022b) |
 
 ### Quarantine

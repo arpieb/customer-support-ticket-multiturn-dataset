@@ -32,12 +32,17 @@ def _config(tmp_path: Path, concurrency: int) -> GenerationConfig:
     )
 
 
+def _output(result) -> Path:
+    """Where the corpus ended up: the published artifact on success, staging otherwise."""
+    return result.artifact_path or result.staging_path
+
+
 async def _corpus(tmp_path: Path, concurrency: int) -> list[dict]:
     run = GenerationRun(
         config=_config(tmp_path, concurrency), seed=SEED, model_client=FakeModelClient()
     )
     result = await run.execute()
-    return [json.loads(line) for line in result.staging_path.read_text().splitlines()]
+    return [json.loads(line) for line in _output(result).read_text().splitlines()]
 
 
 def _seeded_choices(record: dict) -> tuple:

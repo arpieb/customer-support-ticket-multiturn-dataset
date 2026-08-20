@@ -16,7 +16,6 @@ class PIICategory(StrEnum):
     CREDIT_CARD = "CREDIT_CARD"
     US_SSN = "US_SSN"
     IP_ADDRESS = "IP_ADDRESS"
-    POSTAL_CODE = "POSTAL_CODE"
 
 
 #: Types that block a record from the corpus. A detector set that cannot demonstrate all four
@@ -31,18 +30,35 @@ BLOCKING_FLOOR: frozenset[PIICategory] = frozenset(
 )
 
 #: Reported for visibility, never blocking (FR-018b).
-ADVISORY_CATEGORIES: frozenset[PIICategory] = frozenset(
-    {PIICategory.IP_ADDRESS, PIICategory.POSTAL_CODE}
-)
+#:
+#: Postal code is registered in neither tier. It matches ordinary order and account numbers —
+#: "order #12345" reads as a ZIP to a regex — and a detector that fires on nearly every record
+#: trains maintainers to ignore the report, which costs more than the signal is worth. It joins
+#: the declared gaps instead, on the same ground DATE was excluded (research R8).
+ADVISORY_CATEGORIES: frozenset[PIICategory] = frozenset({PIICategory.IP_ADDRESS})
 
 #: Identifier types nothing here detects. Restated in every report so a clean result is never
 #: mistaken for coverage the scan does not provide (FR-019).
 DECLARED_GAPS: tuple[str, ...] = (
     "non-US government identifiers",
+    "postal code",
     "full postal address",
     "bank account number (IBAN)",
     "person name",
 )
+
+
+class FindingStatus(StrEnum):
+    """Whether a finding blocks, and if not, why not."""
+
+    BLOCKING = "blocking"
+    #: Drawn from a range a standard reserves for fiction, so it cannot identify anyone
+    #: (FR-021c). Still reported, so the scan never looks cleaner than it was.
+    EXEMPT_BY_RANGE = "exempt_by_range"
+    #: A reviewer judged this specific value legitimately synthetic (FR-022).
+    APPROVED = "approved"
+    #: Reported for visibility only; never blocks (FR-018b).
+    ADVISORY = "advisory"
 
 
 class DiscardReason(StrEnum):

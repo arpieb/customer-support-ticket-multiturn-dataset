@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from ticket_dataset.config.models import GenerationConfig
 from ticket_dataset.model.client import ModelRole
 from ticket_dataset.model.fake import FakeModelClient, Script
@@ -32,6 +34,11 @@ def make_config(tmp_path: Path, **overrides) -> GenerationConfig:
     return GenerationConfig(**{**base, **overrides})
 
 
+def _output(result) -> Path:
+    """Where the corpus ended up: the published artifact on success, staging otherwise."""
+    return result.artifact_path or result.staging_path
+
+
 async def _run(config: GenerationConfig, client: FakeModelClient | None = None, seed: int = 42):
     run = GenerationRun(config=config, seed=seed, model_client=client or FakeModelClient())
     return await run.execute()
@@ -50,13 +57,13 @@ async def test_a_corpus_is_produced(tmp_path: Path, staging_root: Path) -> None:
 async def test_every_record_conforms_to_the_contract(tmp_path: Path, staging_root: Path) -> None:
     # SC-002: 100% of records conform, verified by the generator's own pre-write check.
     result = await _run(make_config(tmp_path))
-    for line in result.staging_path.read_text().splitlines():
+    for line in _output(result).read_text().splitlines():
         TicketRecord.model_validate_json(line)
 
 
 async def test_positions_are_dense_and_ordered(tmp_path: Path, staging_root: Path) -> None:
     result = await _run(make_config(tmp_path))
-    indices = [record["record_index"] for record in _records(result.staging_path)]
+    indices = [record["record_index"] for record in _records(_output(result))]
     assert indices == list(range(RECORDS))
 
 
@@ -64,7 +71,7 @@ async def test_conversations_alternate_starting_with_the_customer(
     tmp_path: Path, staging_root: Path
 ) -> None:
     result = await _run(make_config(tmp_path))
-    for record in _records(result.staging_path):
+    for record in _records(_output(result)):
         roles = [turn["role"] for turn in record["turns"]]
         assert roles[0] == "customer"
         assert all(a != b for a, b in zip(roles, roles[1:], strict=False))
@@ -75,13 +82,13 @@ async def test_turn_counts_stay_inside_the_configured_range(
 ) -> None:
     config = make_config(tmp_path, turns={"min": 4, "max": 6})
     result = await _run(config)
-    lengths = {len(record["turns"]) for record in _records(result.staging_path)}
+    lengths = {len(record["turns"]) for record in _records(_output(result))}
     assert lengths <= {4, 5, 6}
 
 
 async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path) -> None:
     result = await _run(make_config(tmp_path))
-    for record in _records(result.staging_path):
+    for record in _records(_output(result)):
         assert record["run_id"] == result.run_id
         assert record["schema_version"] == "1.0.0"
         assert record["source_id"].startswith("domain.md@")
@@ -92,17 +99,47 @@ async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path
 
 async def test_record_ids_are_unique(tmp_path: Path, staging_root: Path) -> None:
     result = await _run(make_config(tmp_path))
-    ids = [record["record_id"] for record in _records(result.staging_path)]
+    ids = [record["record_id"] for record in _records(_output(result))]
     assert len(set(ids)) == len(ids)
 
 
-async def test_nothing_reaches_the_release_path(tmp_path: Path, staging_root: Path) -> None:
-    # Until the privacy gate lands there is no code path from staging to the release path, which
-    # is how the blocking-scan requirement is enforced structurally (Constitution IV).
+async def test_a_clean_run_publishes_to_the_release_path(
+    tmp_path: Path, staging_root: Path
+) -> None:
     config = make_config(tmp_path)
     result = await _run(config)
+    assert result.artifact_path == Path(config.output_path)
+    assert Path(config.output_path).exists()
+    # The move is a rename, so the staging copy does not survive as a second copy of the corpus.
+    assert not result.staging_path.exists()
+
+
+async def test_publishing_refuses_without_the_gate(tmp_path: Path, staging_root: Path) -> None:
+    # The structural form of the blocking-scan requirement: there is no other route to the
+    # release path, and this one cannot be taken unless the floor was demonstrated
+    # (Constitution IV, FR-016, FR-018a).
+    from ticket_dataset.errors import ReleaseGateError
+    from ticket_dataset.run.writer import publish
+
+    staging = tmp_path / "staging.jsonl"
+    staging.write_text("{}\n")
+    with pytest.raises(ReleaseGateError, match="Constitution IV"):
+        publish(staging, tmp_path / "release" / "corpus.jsonl", gate_passed=False)
+    assert not (tmp_path / "release" / "corpus.jsonl").exists()
+
+
+async def test_a_failed_run_leaves_the_release_path_empty(
+    tmp_path: Path, staging_root: Path
+) -> None:
+    # Output that did not qualify stays in staging with its accounting; only a clean run
+    # publishes (FR-021a).
+    client = FakeModelClient(judge_score=0.1)
+    config = make_config(tmp_path, record_count=8, max_attempts_per_slot=1)
+    result = await _run(config, client)
+    assert result.outcome is RunOutcome.FAILED
+    assert result.artifact_path is None
     assert not Path(config.output_path).exists()
-    assert result.staging_path.exists()
+    assert result.failures and "coherence discard rate" in result.failures[0]
 
 
 # --- failure paths, each accounted under one reason (FR-009b, FR-009m, FR-026a) -------------
@@ -198,7 +235,7 @@ async def test_a_discarded_slot_does_not_block_later_records(
         make_config(tmp_path, record_count=6, max_attempts_per_slot=1, max_concurrency=1), client
     )
     assert result.records_written == 5
-    indices = [record["record_index"] for record in _records(result.staging_path)]
+    indices = [record["record_index"] for record in _records(_output(result))]
     assert indices == sorted(indices)
     assert len(indices) == 5
 

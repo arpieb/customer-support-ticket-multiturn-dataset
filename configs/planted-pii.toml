@@ -1,0 +1,30 @@
+# A run seeded to emit identifier-shaped content, so the blocking gate can be demonstrated.
+#
+# The prompt document deliberately instructs the model to write real-looking contact details.
+# The expected outcome is a FAILED run with nothing in the release path — see quickstart
+# Scenario 2. Not a corpus configuration.
+record_count = 20
+output_path = "data/release/planted-pii.jsonl"
+prompt_document = "tests/fixtures/prompts/planted-pii-domain.md"
+composition_tolerance_pp = 10.0
+max_concurrency = 2
+
+[turns]
+min = 4
+max = 6
+
+[composition.category]
+account = 0.5
+technical = 0.5
+
+[composition.priority]
+normal = 0.5
+high = 0.5
+
+[composition.channel]
+email = 0.5
+chat = 0.5
+
+[composition.resolution_status]
+resolved = 0.5
+unresolved = 0.5
