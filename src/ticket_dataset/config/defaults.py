@@ -58,8 +58,10 @@ DEFAULT_COHERENCE_MAX_DISCARD_RATE = 0.10  # FR-009k
 DEFAULT_PRIVACY_MAX_DISCARD_RATE = 0.005  # FR-021a
 DEFAULT_COMPOSITION_TOLERANCE_PP = 2.0  # FR-031
 
-DEFAULT_MODEL_ID = "claude-opus-5"
-DEFAULT_EFFORT = "medium"
+#: A litellm model string: ``<provider>/<model>``. The default is a Claude model because that is
+#: what this project was developed against, not because anything requires it — pointing either
+#: role at another provider is a configuration change (research R1).
+DEFAULT_MODEL_ID = "anthropic/claude-opus-4-5"
 DEFAULT_MAX_TOKENS = 16_000
 
 DEFAULT_MAX_CONCURRENCY = 8  # FR-012a

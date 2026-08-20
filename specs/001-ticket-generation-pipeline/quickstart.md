@@ -18,9 +18,10 @@ uv sync                       # installs from the committed uv.lock
 uv run ticket-dataset --help
 ```
 
-**Credentials.** Generation calls a hosted model. Either export `ANTHROPIC_API_KEY`, or run
-`ant auth login` once — the SDK resolves a stored profile with no environment variable set. Check with
-`ant auth status`. The privacy gate never needs credentials or a network (FR-024).
+**Credentials.** Generation calls a hosted model through litellm, so which credentials you need depends on
+the provider `models.generator` names — `ANTHROPIC_API_KEY` for the default `anthropic/…` model,
+`OPENAI_API_KEY` for `openai/…`, and so on. The privacy gate never needs credentials or a network
+(FR-024).
 
 **Offline-install guard.** The privacy scan must not acquire a model dependency by accident:
 

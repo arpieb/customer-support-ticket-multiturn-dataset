@@ -32,7 +32,10 @@ def _record(**overrides):
             {"index": 1, "role": "agent", "content": "Let me take a look."},
         ],
         "quality": {"coherence_score": 0.91, "rubric_id": "coherence-v1"},
-        "generation": {"model_id": "claude-opus-5", "judge_model_id": "claude-opus-5"},
+        "generation": {
+            "model_id": "anthropic/claude-opus-4-5",
+            "judge_model_id": "anthropic/claude-opus-4-5",
+        },
     }
     for key, value in overrides.items():
         if key in base and isinstance(base[key], dict) and isinstance(value, dict):

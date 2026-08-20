@@ -220,3 +220,40 @@ async def test_existing_stats_are_continued_not_reset() -> None:
         stats=carried,
     )
     assert stats.records_generated == 41
+
+
+# --- provider capability, checked before generating (research R1, FR-009b) -------------------
+
+
+def test_a_model_that_cannot_be_constrained_refuses_the_run(tmp_path) -> None:
+    """A model that cannot honour a JSON schema would make every record a structural discard.
+
+    Discovering that after paying for a corpus is the wrong moment, so it is checked beside the
+    detector floor — before the first call rather than after the last one.
+    """
+    from ticket_dataset.errors import ConfigError
+    from ticket_dataset.model.fake import FakeModelClient
+    from ticket_dataset.run.run import GenerationRun
+
+    class PickyClient(FakeModelClient):
+        @staticmethod
+        def supports_structured_output(model_id: str) -> bool:
+            return "good" in model_id
+
+    config = GenerationConfig(
+        record_count=60,
+        output_path=tmp_path / "release" / "corpus.jsonl",
+        models={"generator": {"model_id": "vendor/bad"}, "judge": {"model_id": "vendor/good"}},
+    )
+    with pytest.raises(ConfigError, match="cannot be constrained"):
+        GenerationRun(config=config, seed=1, model_client=PickyClient()).prepare()
+
+
+def test_a_client_that_does_not_advertise_capability_is_not_second_guessed(tmp_path) -> None:
+    # The fake has no opinion about schemas; the check must not invent one for it.
+    from ticket_dataset.model.fake import FakeModelClient
+    from ticket_dataset.run.run import GenerationRun
+
+    config = GenerationConfig(record_count=60, output_path=tmp_path / "release" / "corpus.jsonl")
+    slots = GenerationRun(config=config, seed=1, model_client=FakeModelClient()).prepare()
+    assert len(slots) == 60

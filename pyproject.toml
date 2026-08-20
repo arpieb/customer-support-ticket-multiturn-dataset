@@ -5,10 +5,10 @@ description = "Reproducible generator for multi-turn customer support ticket dat
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "anthropic[aiohttp]>=0.40",
     "pydantic>=2,<3",
     "datafog>=4.8,<5",
     "typer>=0.12",
+    "litellm>=1.97.0",
 ]
 
 [project.scripts]

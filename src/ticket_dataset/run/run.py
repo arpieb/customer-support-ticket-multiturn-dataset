@@ -21,6 +21,7 @@ from typing import Any
 
 from ticket_dataset.config.models import GenerationConfig
 from ticket_dataset.dedup import DuplicateCounter
+from ticket_dataset.errors import ConfigError
 from ticket_dataset.generation.domain_doc import DomainDocument, load_domain_document
 from ticket_dataset.generation.generator import Candidate, StructuralFailure, validate_response
 from ticket_dataset.generation.judge import JudgeFailure, meets_threshold, score_response
@@ -164,6 +165,7 @@ class GenerationRun:
         self.registry.fingerprinter = fingerprint
         self.registry.assert_floor_covered(FLOOR_CANARIES)
         self.gate_passed = True
+        self._assert_models_can_be_constrained()
 
         slots = plan_slots(self.config, self.seed)
         return assign_subdomains(slots, self.document.subdomains, self.seed)
@@ -529,6 +531,33 @@ class GenerationRun:
             failures=failures,
         )
 
+    def _assert_models_can_be_constrained(self) -> None:
+        """Refuse before generating if a configured model cannot honour a JSON schema.
+
+        FR-009b makes a malformed response an accounted discard, which is right for the
+        occasional one. A model that cannot be constrained at all would turn *every* record into a
+        structural discard, and discovering that after paying for a corpus is the wrong moment.
+        Checked here, beside the detector floor, for the same reason: refusals belong before the
+        first call, not after the last one.
+        """
+        checker = getattr(self.model_client, "supports_structured_output", None)
+        if checker is None:  # a fake, or a client that does not advertise the capability
+            return
+        unsupported = [
+            spec.model_id
+            for spec in (self.config.models.generator, self.config.models.judge)
+            if not checker(spec.model_id)
+        ]
+        if unsupported:
+            raise ConfigError(
+                [
+                    f"models: {model} cannot be constrained to a JSON schema, so every response "
+                    "would be a structural discard (FR-009b). Choose a model that supports "
+                    "structured output."
+                    for model in dict.fromkeys(unsupported)
+                ]
+            )
+
     def _scan_report(self) -> ScanReport:
         return ScanReport(
             findings=self.findings,
@@ -618,10 +647,10 @@ class GenerationRun:
         def model_record(spec) -> ModelRecord:
             return ModelRecord(
                 model_id=spec.model_id,
-                effort=spec.effort,
                 max_tokens=spec.max_tokens,
-                thinking=spec.thinking,
                 sampling_seed=spec.sampling_seed,
+                fallback_models=list(spec.fallback_models),
+                extra=dict(spec.extra),
             )
 
         return RunManifest(

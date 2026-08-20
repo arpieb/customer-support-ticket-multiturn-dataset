@@ -9,7 +9,7 @@ network call happens. It exists so the rest of the pipeline can be tested withou
 
 ## The seam: `ModelClient`
 
-Every call goes through one narrow protocol. Nothing else in the package imports `anthropic`.
+Every call goes through one narrow protocol. Nothing else in the package reaches a provider.
 
 ```python
 class ModelClient(Protocol):
@@ -27,48 +27,59 @@ class ModelClient(Protocol):
 request** — not the one requested), `stop_reason`, `usage`, and `retries`. Returning the served model ID is
 what makes per-record `generation.model_id` honest under refusal fallback (FR-027).
 
-Two implementations: `AnthropicModelClient` (real) and `FakeModelClient` (tests, scripted responses
-including refusals, malformed JSON, and rate-limit errors). The fake is what lets contract and integration
-tests run offline and deterministically — the whole pipeline is exercised without credentials.
+Two implementations: `LiteLLMModelClient` (real, any provider litellm supports) and `FakeModelClient`
+(tests, scripted responses including refusals, malformed JSON, and rate-limit errors). The fake is what lets
+contract and integration tests run offline and deterministically — the whole pipeline is exercised without
+credentials, and no test imports the real client.
 
 ### Request shape
 
 ```python
-response = await client.beta.messages.create(
-    model=spec.model_id,
+response = await litellm.acompletion(
+    model=spec.model_id,  # e.g. "anthropic/claude-opus-4-5"
     max_tokens=spec.max_tokens,
-    system=system,
-    messages=[{"role": "user", "content": user}],
-    thinking={"type": "adaptive"},
-    output_config={
-        "effort": spec.effort,
-        "format": {"type": "json_schema", "schema": schema},
+    messages=[
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ],
+    response_format={
+        "type": "json_schema",
+        "json_schema": {"name": "response", "schema": schema, "strict": True},
     },
-    betas=["server-side-fallback-2026-06-01"],
-    fallbacks=[{"model": "claude-opus-4-8"}],
+    num_retries=4,
+    drop_params=True,
+    fallbacks=list(spec.fallback_models),  # omitted when empty
+    **spec.extra,  # provider-specific settings
 )
 ```
 
-- **Model**: `claude-opus-5` by default for both roles, configurable per role (research R1).
-- **Structured output**: `output_config.format` constrains the response; the pipeline still parses and
-  validates it itself, because FR-009b makes every malformed response an *accounted discard* rather than an
-  exception escaping the SDK.
-- **Refusal fallback**: enabled by default so a policy decline is a rescued record rather than a lost slot.
-  The scalar `fallbacks="default"` form (beta `server-side-fallback-2026-07-01`) is the alternative and
-  requires no model list; a header paired with the wrong form is a 400. Disable via config when an operator
-  wants a single model identity guaranteed across the corpus.
-- **Transport retry**: left to the SDK (`max_retries`), which covers 408/409/429/5xx and connection errors.
-  Retries are counted and reported separately from discards (FR-012d).
+- **Provider**: whatever `model_id` names. No vendor is pinned — no functional requirement names
+  one (research R1). The default is a Claude model because that is what the project was developed
+  against.
+- **Structured output**: `response_format` constrains the response; the pipeline still parses and
+  validates it itself, because FR-009b makes every malformed response an *accounted discard*
+  rather than an exception escaping the provider layer.
+- **Capability check**: `supports_response_schema(model_id)` is consulted before generating, so a
+  model that cannot honour a schema refuses the run rather than turning every record into a
+  structural discard.
+- **Fallbacks**: provider-neutral. When the configured model declines or fails, the models in
+  `fallback_models` are tried; a rescued record stays in the corpus and names its actual producer
+  (FR-009n, FR-027a). Empty by default — rescue is opt-in, because a corpus spanning several
+  models is a fact a datasheet has to report.
+- **Transport retry**: left to litellm (`num_retries`), which covers rate limits, timeouts, and
+  5xx. Retries are counted and reported separately from discards (FR-012d).
+- **Unsupported parameters**: `drop_params` keeps a provider from failing the run over a setting
+  another provider needed.
 - **Rate limiting**: a token bucket in front of every call, shared across both roles (FR-012e).
 
 ### Failure mapping
 
 | Condition | Handling |
 |-----------|----------|
-| `stop_reason == "refusal"` after fallback | Slot retry; on exhaustion, discard `model_refusal` — a distinct outcome from a malformed response, so a prompt domain that trips a classifier is visible rather than hidden behind a flaky-provider statistic (FR-009m). A record rescued by a fallback model stays in the corpus and names its actual producer (FR-009n, FR-027a) |
+| `ContentPolicyViolationError`, or a content-filter finish reason | Slot retry; on exhaustion, discard `model_refusal` — a distinct outcome from a malformed response, so a prompt domain that trips a classifier is visible rather than hidden behind a flaky-provider statistic (FR-009m). litellm normalizes this across providers, so the distinction does not depend on one vendor's stop-reason vocabulary. A record rescued by a fallback model stays in the corpus and names its actual producer (FR-009n, FR-027a) |
 | `stop_reason == "max_tokens"` | Treated as structurally invalid — a truncated conversation is never coerced into a record |
 | Unparseable or schema-invalid JSON | Slot retry; on exhaustion, discard `structural_invalid` |
-| `RateLimitError`, 5xx, connection error | SDK retries; on exhaustion, counted toward the consecutive-failure limit |
+| `RateLimitError`, `ServiceUnavailableError`, `Timeout`, connection error | litellm retries; on exhaustion, counted toward the consecutive-failure limit |
 | Judge call fails after retries | Discard `unjudgeable` — never an admitted unjudged record (FR-009l) |
 
 Consecutive failures across slots trip the circuit breaker: the run stops and checkpoints rather than
@@ -176,8 +187,8 @@ IV). The privacy scan runs on **output**, offline, and is not a substitute for t
 
 Credentials are the one thing the pipeline reads from the environment, and they are an access mechanism
 rather than a generation input: they never influence output and are never written to a manifest, report,
-checkpoint, or log (FR-008). Anything else the environment contributes — an alternate endpoint, a profile
-selection, an inference region — **is** capable of changing output and is therefore recorded in the
-manifest as a non-deterministic input (FR-008c). `AnthropicModelClient` surfaces the effective endpoint and
-routing settings for that record; a setting it cannot observe causes the run to refuse rather than proceed
-unrecorded.
+checkpoint, or log (FR-008). Which credentials those are depends on the provider — litellm resolves each
+one's conventions — and none of them are recorded. Anything else the environment contributes, such as an
+alternate endpoint or a region, **is** capable of changing output and is therefore recorded in the manifest
+as a non-deterministic input (FR-008c); a setting that cannot be observed causes the run to refuse rather
+than proceed unrecorded.

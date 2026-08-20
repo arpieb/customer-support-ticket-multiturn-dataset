@@ -30,10 +30,13 @@ through one narrow `ModelClient` protocol, so the entire pipeline is testable of
 
 **Language/Version**: Python 3.14 (per `requires-python = ">=3.14"` in `pyproject.toml`)
 
-**Primary Dependencies**: `anthropic` with the `aiohttp` extra (async model access — research R1),
-`pydantic` v2 (record contract, config, manifest, report), `datafog >=4.8,<5` core install, no extras
-(offline regex PII engine — research R7), `typer` (CLI). Dev-only: `pytest`, `pytest-asyncio`,
-`pytest-cov`, `ruff`.
+**Primary Dependencies**: `litellm` (provider-neutral model access — research R1), `pydantic` v2 (record
+contract, config, manifest, report), `datafog >=4.8,<5` core install, no extras (offline regex PII engine —
+research R7), `typer` (CLI). Dev-only: `pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`.
+
+**No vendor is pinned.** No functional requirement names one, so the design does not either: `model_id` is
+a litellm model string and the provider is a configuration choice. The default is a Claude model because
+that is what the project was developed against, not because anything depends on it.
 
 **Storage**: Files only. JSONL corpora under `data/release/`, staging and checkpoints under
 `data/interim/`, JSON manifests and reports beside the artifact, a committed JSON Schema export, committed
@@ -109,8 +112,13 @@ budget makes SC-001 literally satisfiable and gives an unattended release-scale 
 the blocking floor is named at identifier-type level so it stops promising coverage no offline detector
 delivers (FR-018, FR-019).
 
+A later correction is recorded in research R1: the first plan reached a vendor SDK directly, which wrote a
+vendor into a design whose requirements deliberately name none. Provider access now goes through litellm.
+The `ModelClient` seam meant the change touched one module, its documentation, and the model settings in the
+configuration — nothing in the pipeline, the gates, or the contracts for records and manifests.
+
 The design added one dependency beyond the
-superseded feature's set (`anthropic`), no new persisted format beyond those listed, and no whole-corpus
+superseded feature's set (`litellm`), no new persisted format beyond those listed, and no whole-corpus
 load. Two design decisions strengthened gates rather than straining them: recording the served model ID per
 record closed a hole in Gate II that a refusal fallback would otherwise have opened, and ordering the
 privacy scan ahead of the judge made Gate IV's "before reaching `data/`" literal while widening what the
@@ -160,7 +168,7 @@ src/ticket_dataset/
 │   └── seeding.py            # slot_random(seed, position, attempt) — counter-based derivation (R2)
 ├── model/
 │   ├── client.py             # ModelClient protocol, ModelRole, ModelResponse
-│   ├── anthropic_client.py   # The ONLY module importing `anthropic`
+│   ├── litellm_client.py     # The ONLY module that reaches a provider (research R1)
 │   ├── fake.py               # FakeModelClient — scripted responses for offline tests
 │   ├── limiter.py            # Token-bucket rate limiter (FR-012e)
 │   └── wire.py               # GeneratedConversation, JudgeVerdict wire models
@@ -238,7 +246,8 @@ manifest moved into this feature, so one package now owns the whole release path
 pipeline's stages so the dependency direction is visible: `schema` and `config` depend on nothing;
 `planning` and `model` depend on those; `generation` and `privacy` depend on `model`; `run` composes
 everything; `cli` depends only on `run`. The `model/` boundary is the one that matters most — it is the
-only place `anthropic` is imported, which is what makes the rest of the package testable offline.
+only place a provider is reached, which is what makes the rest of the package testable offline and what
+keeps a provider change a configuration matter rather than a rewrite.
 
 ## Complexity Tracking
 
@@ -250,4 +259,4 @@ have, and both are named by a requirement rather than chosen for taste.
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | Detector registry between the pipeline and the PII engine | FR-017 requires detectors to be addable or replaceable without changing the record definition or the pipeline, and FR-022's exception suppression must behave identically across detectors | Calling `datafog` directly is fewer moving parts, but ties the gate to one library's category names and makes approved exceptions detector-specific — a value approved once would stop being approved after a detector swap, which is exactly what FR-017's replaceability is for |
-| `ModelClient` protocol between the pipeline and the SDK | Keeps `anthropic` in one module so every other component — and therefore the whole test suite — runs offline and deterministically, and lets the served model ID be surfaced per record for FR-027 | Calling the SDK inline is more direct, but then no integration test can run without credentials and a network, and CI would either skip the pipeline's most important paths or pay for them on every push |
+| `ModelClient` protocol between the pipeline and litellm | Keeps provider access in one module so every other component — and therefore the whole test suite — runs offline and deterministically, and lets the served model ID be surfaced per record for FR-027. It is also what made replacing a vendor SDK with a provider abstraction a one-module change rather than a rewrite | Calling the provider inline is more direct, but then no integration test can run without credentials and a network, and CI would either skip the pipeline's most important paths or pay for them on every push |

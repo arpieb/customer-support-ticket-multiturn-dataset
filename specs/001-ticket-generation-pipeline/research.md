@@ -9,42 +9,49 @@ feature and a plan should not depend on a superseded document to be readable.
 
 ---
 
-## R1: Model access — SDK, model identity, and structured responses
+## R1: Model access — provider abstraction, not a vendor SDK
 
-**Decision**: Call Claude through the official **`anthropic` Python SDK** using **`AsyncAnthropic`** with the
-`DefaultAioHttpClient` backend (`anthropic[aiohttp]`). Default model for both generation and judging is
-**`claude-opus-5`**, configurable per role. Responses are constrained with
-`output_config={"format": {"type": "json_schema", "schema": ...}}` on `client.messages.create`, where the
-schema is `model_json_schema()` of the corresponding Pydantic wire model. Adaptive thinking
-(`thinking={"type": "adaptive"}`) with `output_config.effort` configurable per role. Server-side refusal
-fallback is enabled by default (`betas=["server-side-fallback-2026-07-01"]`, `fallbacks="default"`).
+**Decision**: Reach models through **litellm**, behind the project's own `ModelClient` protocol.
+Responses are constrained with `response_format={"type": "json_schema", ...}`. `model_id` is a
+litellm model string (`anthropic/claude-opus-4-5`, `openai/gpt-5`, `vertex_ai/gemini-2.5-pro`),
+and anything a particular provider needs that the contract does not model goes in a pass-through
+`extra` mapping. The default is a Claude model; nothing depends on that.
 
-**Rationale**: The SDK is the supported surface, handles auth resolution (`ANTHROPIC_API_KEY`, then
-`ANTHROPIC_AUTH_TOKEN`, then an `ant auth login` profile), and already retries 408/409/429/5xx with
-exponential backoff — FR-012d gets a correct baseline for free, and the pipeline layers its own accounting
-on top rather than reimplementing transport. The aiohttp backend is the documented choice for
-high-concurrency async workloads, which FR-012a requires.
+**Rationale**: **No functional requirement names a vendor.** FR-009a says "a language model",
+FR-027 says "any generation model identity", FR-009j says "the identity and parameters of the
+judging model". Pinning one vendor's SDK would write into the design a constraint the
+requirements deliberately do not have, and would make "use a different provider" a rewrite of the
+one module every model call passes through rather than a configuration change.
 
-`output_config.format` is preferred over `client.messages.parse()` because **FR-009b makes structural
-validation our own obligation**: every response must be validated and every failure accounted for under a
-named discard reason. Owning the `json.loads` → Pydantic step keeps that accounting in one place and keeps
-the code path identical whether the response was constrained or not, so a malformed response is a *discard*
-rather than an exception from inside the SDK. Constraining the format still matters — it makes malformed
-responses rare rather than routine.
+litellm also normalizes the things this pipeline actually depends on across providers:
+`ContentPolicyViolationError` is a vendor-neutral safety decline, which FR-009m needs to keep
+separate from malformed output and transport failure; `RateLimitError` and its siblings map onto
+the transport class FR-012d reports; and `supports_response_schema()` lets a run check before
+generating that the configured model can honour a schema at all, rather than discovering it one
+structural discard at a time.
 
-Refusal fallback is enabled because a safety decline on a support-conversation prompt would otherwise be a
-pure loss (a discarded slot and a wasted call). It has a provenance consequence, and the design absorbs it:
-the model that actually served a record is recorded **on the record** (`generation.model_id`), not only in
-the manifest, so a fallback cannot silently make the manifest's single "model identity" field a lie
-(Principle II, FR-027).
+**Cost, stated plainly**: provider-specific features reach the request untyped, through `extra`.
+A reasoning-effort setting or a thinking budget is a dictionary key rather than a typed field, so
+a typo is a runtime surprise rather than a validation error. That is the price of not naming a
+vendor in the configuration, and it is recorded in the manifest either way, because anything that
+shapes output is provenance.
+
+**A correction, recorded rather than quietly fixed**: the first version of this entry chose the
+`anthropic` SDK directly, and every alternative it weighed — `messages.parse` versus
+`output_config`, strict tool use, prefill, raw HTTP — was a choice *within* one vendor. The
+multi-vendor option was never considered, and the resulting coupling reached `plan.md`, the
+contracts, and the data model before anyone noticed. The spec was vendor-neutral the whole time.
 
 **Alternatives considered**:
-- *`client.messages.parse()` with `output_format=<PydanticModel>`*: less code, but moves validation failure
-  into an SDK exception path and out of the discard-accounting path FR-009b requires.
-- *Strict tool use as the output channel*: equivalent constraint strength, but a tool call is a worse fit
-  than a response format for "return one document", and it is incompatible with some other options.
-- *Assistant prefill to force JSON*: rejected outright — prefills return 400 on Claude Opus 5.
-- *Raw HTTP via `httpx`*: no benefit; loses typed errors, retry policy, and auth resolution.
+- *A vendor SDK directly* (the original decision): typed parameters, first-class support for that
+  vendor's newest features, and one less dependency — at the cost of writing a vendor into a
+  design whose requirements do not have one, and of making a provider change a rewrite of the
+  model boundary.
+- *Our own thin multi-provider layer*: no dependency and exactly the surface we need, but it means
+  owning request shapes, error taxonomies, and retry semantics for every provider — which is the
+  work litellm exists to have done already.
+- *`client.messages.parse()`-style SDK sugar*: less code, but it moves validation failure into an
+  exception path and out of the discard-accounting path FR-009b requires.
 
 ---
 

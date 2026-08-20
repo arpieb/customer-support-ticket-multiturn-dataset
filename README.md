@@ -24,11 +24,18 @@ the same change as any dependency edit.
 
 Generating conversations calls a hosted model, so a run needs credentials:
 
+Which credentials depends on which provider you point it at. Model access goes through
+[litellm](https://docs.litellm.ai/), so `models.generator` and `models.judge` take a
+`<provider>/<model>` string and the provider's usual environment variables apply:
+
 ```bash
-export ANTHROPIC_API_KEY=...        # or:
-ant auth login                       # stores a profile the SDK reads automatically
-ant auth status                      # confirms which credential source is active
+export ANTHROPIC_API_KEY=...        # anthropic/claude-opus-4-5   (the default)
+export OPENAI_API_KEY=...           # openai/gpt-5
+export GEMINI_API_KEY=...           # gemini/gemini-2.5-pro
 ```
+
+**No vendor is pinned.** No requirement in this project names one — switching providers is a
+configuration change, not a code change.
 
 Credentials are an **access mechanism**, not a generation input. They never influence output and
 are never written to a manifest, report, checkpoint, or log. Anything else in the environment that
@@ -82,6 +89,12 @@ max = 10
 billing = 0.5
 technical = 0.3
 account = 0.2
+
+[models.generator]
+model_id = "anthropic/claude-opus-4-5"     # any litellm-supported provider
+
+[models.judge]
+model_id = "anthropic/claude-opus-4-5"
 ```
 
 Two things commonly surprise people, and both refuse **before** any model call rather than after:
@@ -175,8 +188,9 @@ uv run ruff format .
 ```
 
 The entire pipeline is exercised against a scripted fake model, so the suite is free, fast, and
-deterministic. `src/ticket_dataset/model/anthropic_client.py` is the only module that imports
-`anthropic`, and nothing under `tests/` imports it.
+deterministic. `src/ticket_dataset/model/litellm_client.py` is the only module that reaches a
+provider; nothing under `tests/` imports it, and a contract test asserts that importing the
+package does not pull the provider stack in.
 
 The record contract is the Pydantic model in `src/ticket_dataset/schema/record.py`; it exports
 [`contracts/record.schema.json`](specs/001-ticket-generation-pipeline/contracts/record.schema.json)

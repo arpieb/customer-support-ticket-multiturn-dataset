@@ -62,7 +62,7 @@ def generate(
 ) -> None:
     """Produce a corpus."""
     # Imported here so `--help` and a refused config never pay for the model stack.
-    from ticket_dataset.model.anthropic_client import AnthropicModelClient
+    from ticket_dataset.model.litellm_client import LiteLLMModelClient
     from ticket_dataset.run.run import GenerationRun
 
     try:
@@ -78,7 +78,7 @@ def generate(
         run = GenerationRun(
             config=loaded,
             seed=seed,
-            model_client=AnthropicModelClient(loaded),
+            model_client=LiteLLMModelClient(loaded),
             run_id=run_id or "",
         )
         slots = run.prepare()
