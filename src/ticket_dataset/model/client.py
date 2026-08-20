@@ -1,8 +1,9 @@
 """The one seam through which every model call passes (contracts/model-io.md).
 
-Nothing outside :mod:`ticket_dataset.model.anthropic_client` imports ``anthropic``. That is
-what lets the whole pipeline — and therefore the whole test suite — run offline against a fake,
-which keeps CI free and deterministic.
+Nothing outside :mod:`ticket_dataset.model.litellm_client` reaches a provider. That is what lets
+the whole pipeline — and therefore the whole test suite — run offline against a fake, which keeps
+CI free and deterministic, and what makes the provider a configuration choice rather than a
+structural commitment (research R1).
 """
 
 from dataclasses import dataclass, field

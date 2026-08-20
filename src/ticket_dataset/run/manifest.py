@@ -45,11 +45,18 @@ class Segment:
 
 @dataclass(frozen=True, slots=True)
 class ModelRecord:
+    """What served one role, and under what settings (FR-027, FR-009j).
+
+    Provider-neutral: ``model_id`` is a litellm model string and ``extra`` carries whatever
+    provider-specific settings shaped the output. Both are recorded because anything that shapes
+    output is provenance, whichever vendor's vocabulary it happens to be written in.
+    """
+
     model_id: str
-    effort: str
     max_tokens: int
-    thinking: str
     sampling_seed: int | None
+    fallback_models: list[str]
+    extra: dict
 
 
 @dataclass(slots=True)

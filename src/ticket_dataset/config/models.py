@@ -7,7 +7,7 @@ cannot honestly describe (FR-015e).
 
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -25,18 +25,27 @@ class _Config(BaseModel):
 
 
 class ModelSpec(_Config):
-    """Identity and parameters of one model role, recorded in the manifest (FR-027)."""
+    """Identity and parameters of one model role, recorded in the manifest (FR-027).
+
+    Deliberately provider-neutral. ``model_id`` is a litellm model string —
+    ``anthropic/claude-opus-5``, ``openai/gpt-5``, ``vertex_ai/gemini-2.5-pro`` — and anything a
+    particular provider needs that the contract does not model goes in ``extra``. Typing those
+    settings here would put one vendor's vocabulary into a configuration the requirements
+    deliberately leave open (FR-009a names "a language model", not a vendor).
+    """
 
     model_id: str = defaults.DEFAULT_MODEL_ID
-    effort: str = defaults.DEFAULT_EFFORT
     max_tokens: int = Field(default=defaults.DEFAULT_MAX_TOKENS, ge=1)
-    thinking: str = "adaptive"
     #: Null states plainly that no sampling seed was used, rather than implying a
     #: reproducibility the run cannot deliver (FR-010).
     sampling_seed: int | None = None
-    #: A declined request is rescued on another model unless this is off. A rescued record
-    #: stays in the corpus and names its actual producer (FR-009n, FR-027a).
-    fallback_enabled: bool = True
+    #: Models to try when the configured one declines or fails. A rescued record stays in the
+    #: corpus and names its actual producer (FR-009n, FR-027a). Empty means no rescue.
+    fallback_models: tuple[str, ...] = ()
+    #: Provider-specific request settings, passed through untyped: reasoning effort, thinking
+    #: budgets, safety settings. Recorded verbatim in the manifest, because anything that shapes
+    #: output is provenance (FR-027).
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class Models(_Config):

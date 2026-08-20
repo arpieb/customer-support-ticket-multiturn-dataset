@@ -132,7 +132,7 @@ manifest and hashed into the checkpoint's input fingerprint set.
 | `coherence.max_discard_rate` | `float` | `0.10` | `coherence_below_threshold` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-009k) |
 | `privacy.max_discard_rate` | `float` | `0.005` | `privacy_finding` discards ÷ `records_generated` (FR-026a). Exceeding it fails the run (FR-021a) |
 | `composition_tolerance_pp` | `float` | `2.0` | Percentage points, evaluated **per member** of each dimension; the worst member decides (FR-031). Must be ≥ `100 / record_count`, or the run refuses before generating (FR-031b) |
-| `models.generator` / `models.judge` | `ModelSpec` | `claude-opus-5` | Model ID, effort, `max_tokens`; recorded in the manifest (FR-027) |
+| `models.generator` / `models.judge` | `ModelSpec` | `anthropic/claude-opus-4-5` | A litellm model string, `max_tokens`, optional `fallback_models`, and a pass-through `extra` for provider-specific settings. All recorded in the manifest, because anything that shapes output is provenance (FR-027) |
 | `max_concurrency` | `int` | `8` | ≥ 1 (FR-012a) |
 | `requests_per_minute` | `int` | `1000` | ≥ 1; the run's self-imposed bound (FR-012e) |
 | `max_attempts_per_slot` | `int` | `3` | ≥ 1. The **single** knob for every retryable per-record failure — refusal, unparseable or invalid response, unscorable record alike (FR-009o). Distinct from transport retries, which the SDK owns and FR-012d reports separately. Exhausting it discards the slot as `attempts_exhausted` |
@@ -233,10 +233,10 @@ of deciding to release.
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `model_id` | `str` | e.g. `claude-opus-5` |
-| `effort` | `str` | `low` … `max`; a parameter that shapes output and must be recorded |
+| `model_id` | `str` | A litellm model string, e.g. `anthropic/claude-opus-4-5`. No vendor is pinned; the provider is a configuration choice (research R1) |
 | `max_tokens` | `int` | Request ceiling |
-| `thinking` | `str` | The thinking mode used |
+| `fallback_models` | `list[str]` | Models tried when the configured one declines or fails (FR-009n). Empty by default: a corpus spanning several models is a fact a datasheet has to report, so rescue is opt-in |
+| `extra` | `map[str, any]` | Provider-specific settings — reasoning effort, thinking budgets, safety settings. Untyped on purpose: typing them would put one vendor's vocabulary into a contract the requirements deliberately leave open |
 | `sampling_seed` | `int \| None` | Recorded when the provider accepts one; `None` states plainly that none was used (FR-010) |
 
 #### DiscardAccount

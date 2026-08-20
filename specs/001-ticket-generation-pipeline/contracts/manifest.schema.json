@@ -241,39 +241,38 @@
       "additionalProperties": false,
       "required": [
         "model_id",
-        "effort",
         "max_tokens",
-        "thinking",
-        "sampling_seed"
+        "sampling_seed",
+        "fallback_models",
+        "extra"
       ],
+      "description": "Provider-neutral. model_id is a litellm model string; extra carries whatever provider-specific settings shaped the output, because anything that shapes output is provenance (FR-027).",
       "properties": {
         "model_id": {
           "type": "string",
           "minLength": 1
         },
-        "effort": {
-          "type": "string",
-          "enum": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ]
-        },
         "max_tokens": {
           "type": "integer",
           "minimum": 1
-        },
-        "thinking": {
-          "type": "string"
         },
         "sampling_seed": {
           "type": [
             "integer",
             "null"
           ],
-          "description": "Null states plainly that no sampling seed was used, rather than implying reproducibility the run cannot deliver (FR-010)."
+          "description": "Null states plainly that no sampling seed was used, rather than implying a reproducibility the run cannot deliver (FR-010)."
+        },
+        "fallback_models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Models tried when the configured one declines or fails (FR-009n)."
+        },
+        "extra": {
+          "type": "object",
+          "description": "Provider-specific request settings, recorded verbatim."
         }
       }
     },

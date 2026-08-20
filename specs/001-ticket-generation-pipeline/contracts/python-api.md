@@ -111,11 +111,19 @@ it is model output and is not reproducible — the record carries both, and only
 ## Model access
 
 ```python
-from ticket_dataset import ModelClient, ModelRole, ModelResponse, AnthropicModelClient
+from ticket_dataset import ModelClient, ModelRole, ModelResponse, FakeModelClient
+
+# The concrete provider client is imported from its module, not the package root:
+from ticket_dataset.model.litellm_client import LiteLLMModelClient
 ```
 
-The protocol in [model-io.md](./model-io.md). `AnthropicModelClient` is the only module that imports
-`anthropic`; every other component depends on the protocol, so the pipeline is fully testable offline.
+The protocol in [model-io.md](./model-io.md). `LiteLLMModelClient` is the only module that reaches a
+provider; every other component depends on the protocol, so the pipeline is fully testable offline and a
+provider change is a configuration matter rather than a rewrite (research R1).
+
+It is deliberately **not** re-exported from the package root. Importing `ticket_dataset` would then pull in
+the provider stack, and a contract test asserts it does not — the offline guarantee is worth more than the
+convenience of a shorter import.
 
 ---
 

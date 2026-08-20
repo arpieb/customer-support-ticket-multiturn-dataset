@@ -104,7 +104,7 @@ def test_every_exported_name_is_importable(name: str) -> None:
     assert getattr(ticket_dataset, name) is not None
 
 
-def test_the_public_api_does_not_import_anthropic() -> None:
+def test_the_public_api_does_not_import_a_provider_stack() -> None:
     """The model seam is why the suite runs offline (plan.md Testing).
 
     Checked in a subprocess rather than by clearing ``sys.modules`` here. Purging modules
@@ -116,7 +116,8 @@ def test_the_public_api_does_not_import_anthropic() -> None:
         [
             sys.executable,
             "-c",
-            "import sys, ticket_dataset; print('anthropic' in sys.modules)",
+            "import sys, ticket_dataset; "
+            "print(any(m == 'litellm' or m.startswith('litellm.') for m in sys.modules))",
         ],
         capture_output=True,
         text=True,
@@ -124,8 +125,8 @@ def test_the_public_api_does_not_import_anthropic() -> None:
         check=True,
     )
     assert result.stdout.strip() == "False", (
-        "importing ticket_dataset pulled in anthropic; the ModelClient seam exists so the "
-        "package can be used and tested without it"
+        "importing ticket_dataset pulled in the provider stack; the ModelClient seam exists "
+        "so the package can be used and tested without it"
     )
 
 

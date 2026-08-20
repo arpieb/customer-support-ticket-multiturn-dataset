@@ -29,11 +29,11 @@ def _written_manifest() -> dict:
 
     now = datetime(2026, 3, 1, tzinfo=UTC)
     model = ModelRecord(
-        model_id="claude-opus-5",
-        effort="medium",
+        model_id="anthropic/claude-opus-4-5",
         max_tokens=16000,
-        thinking="adaptive",
         sampling_seed=None,
+        fallback_models=[],
+        extra={},
     )
     manifest = RunManifest(
         run_id="run-1",
