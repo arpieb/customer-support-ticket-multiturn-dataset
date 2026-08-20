@@ -280,7 +280,7 @@ Without it, FR-022's approval has no input: the record is gone and FR-020 withho
 | Property | Rule |
 |----------|------|
 | Location | Under `data/interim/` — never the release path, never committed (`data/` is git-ignored) |
-| Contents | The full discarded record, plus the findings that flagged it |
+| Contents | The full discarded record, plus the findings that flagged it. One entry per blocked **attempt**, including attempts a retry replaced (FR-021b) |
 | Visibility | The run report names the quarantine path and its record count, so its existence is never implicit |
 | Status | Not dataset output. Nothing downstream may read it as a corpus |
 | Retention | Survives a successful run, unlike the staging file and checkpoint (FR-015i): it is the input to FR-022's approval and cannot be reconstructed without regenerating the corpus |

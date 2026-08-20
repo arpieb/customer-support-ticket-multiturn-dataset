@@ -141,3 +141,71 @@ async def test_the_scan_runs_before_the_judge(tmp_path: Path, staging_root: Path
     await _run(_config(tmp_path), client)
     judge_calls = [role for role, _ in client.calls if role is ModelRole.JUDGE]
     assert judge_calls == [], "a blocked record must not reach the judge"
+
+
+async def test_an_attempt_a_retry_rescued_is_still_quarantined(
+    tmp_path: Path, staging_root: Path
+) -> None:
+    """The count and the quarantine must not diverge (FR-021b, FR-026a).
+
+    A slot that trips a privacy finding and then succeeds on retry records the discard either
+    way — FR-026's arithmetic depends on it, and FR-021a's rate is the signal that a generator is
+    emitting identifiers whether or not retries rescue the corpus. Quarantining only the slots
+    that *also* failed would leave the report claiming findings nothing can show, and the
+    rescued attempts are precisely the ones no other artifact records.
+    """
+    calls = {"n": 0}
+
+    def responder(role: ModelRole, system: str, user: str) -> ModelResponse:
+        if role is ModelRole.JUDGE:
+            criteria = ["single_issue", "role_consistency", "conversational_flow", "metadata_fit"]
+            return ModelResponse(
+                text=json.dumps({"criteria": dict.fromkeys(criteria, 0.95), "justification": "ok"}),
+                model_id="fake-model-1",
+            )
+        calls["n"] += 1
+        count = int(user.split("turn_count=")[1].split("\n")[0])
+        # Every first attempt trips; every retry is clean.
+        planted = REAL_LOOKING_EMAIL if calls["n"] % 2 == 1 else "no identifiers here"
+        turns = [
+            {
+                "role": "customer" if i % 2 == 0 else "agent",
+                "content": f"reach me at {planted}" if i == 0 else f"turn {i}",
+            }
+            for i in range(count)
+        ]
+        return ModelResponse(
+            text=json.dumps({"scenario": "contact details", "turns": turns}),
+            model_id="fake-model-1",
+        )
+
+    config = _config(
+        tmp_path,
+        record_count=4,
+        max_attempts_per_slot=2,
+        max_concurrency=1,
+        composition_tolerance_pp=50.0,
+        privacy={"max_discard_rate": 1.0},
+    )
+    result = await _run(config, FakeModelClient(responder=responder))
+
+    # Every slot succeeded on its retry, so the corpus is clean and complete...
+    assert result.outcome is RunOutcome.COMPLETED
+    assert result.records_written == 4
+    # ...while the discards and the quarantine both record the blocked attempts.
+    assert result.stats.discards[DiscardReason.PRIVACY_FINDING] == 4
+    assert result.quarantine_count == 4, "a rescued attempt must still be retained"
+
+    entries = [
+        json.loads(line) for line in result.quarantine_path.read_text().splitlines() if line.strip()
+    ]
+    assert len(entries) == 4
+    assert all(REAL_LOOKING_EMAIL in e["record"]["turns"][0]["content"] for e in entries)
+
+
+async def test_the_report_and_the_quarantine_agree(tmp_path: Path, staging_root: Path) -> None:
+    # The symptom that exposed the defect on a live run: three blocking findings reported against
+    # zero quarantined records.
+    result = await _run(_config(tmp_path), _client_emitting(f"reach me at {REAL_LOOKING_EMAIL}"))
+    blocking = [f for f in result.findings if f.blocks]
+    assert len(blocking) == result.quarantine_count

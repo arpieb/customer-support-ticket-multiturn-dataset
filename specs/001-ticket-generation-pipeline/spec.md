@@ -469,12 +469,18 @@ stated tolerance.
 - **FR-021**: A record carrying an unreviewed privacy finding MUST NOT reach the release path. Such records
   MUST be discarded and accounted for under a distinct privacy discard reason, and the remainder of the
   corpus MUST proceed; the gate MUST NOT be advisory and MUST NOT pass a flagged record through.
-- **FR-021b**: A record discarded for a privacy finding MUST be retained in a **quarantine artifact**
-  outside the release path, so that a reviewer has something to adjudicate when the masked rendering alone
-  is insufficient. The quarantine artifact MUST be identified in the run report, MUST NOT be committed to
+- **FR-021b**: **Every attempt** discarded for a privacy finding MUST be retained in a **quarantine
+  artifact** outside the release path — including one that a later attempt replaced, whose record therefore
+  never reaches the corpus. The discard is counted either way (FR-026a), so retaining only the attempts that
+  also lost their slot would leave the report claiming findings the quarantine cannot show, and the rescued
+  attempts are the ones no other artifact records at all. Quarantine exists so that a reviewer has something
+  to adjudicate when the masked rendering alone is insufficient. The quarantine artifact MUST be identified in the run report, MUST NOT be committed to
   the repository, and MUST NOT be treated as dataset output. Without it, FR-022's approval has no input:
   the record is gone and FR-020 withholds the value, leaving a reviewer asked to judge something no
-  artifact contains.
+  artifact contains. Its second purpose is diagnostic and is what makes it earn its keep in practice: a run
+  that trips on values outside the reserved-for-fiction ranges is telling the operator that the prompt
+  document needs steering or the exemption ranges need widening, and neither is actionable from a masked
+  rendering alone.
 - **FR-021a**: The run report MUST state how many records were discarded for privacy reasons. A discard rate
   above a configured threshold MUST fail the run, because a generator emitting identifiers at volume is
   defective and filtering around it would mask the defect. The threshold defaults to **0.5%** of records
