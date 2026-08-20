@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arpieb/customer-support-ticket-multiturn-dataset/schemas/record/1.0.0",
+  "title": "TicketRecord",
+  "description": "One multi-turn customer support interaction. Schema version 1.0.0. This file is the committed contract (Constitution Principle I); the Pydantic model in src/ticket_dataset/schema/record.py is authoritative and exports this file, and a CI check fails if the two drift.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "run_id",
+    "record_index",
+    "source_id",
+    "subdomain",
+    "scenario",
+    "metadata",
+    "turns",
+    "quality",
+    "generation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "The contract version this record was written against (FR-002)."
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable unique identifier: UUIDv5 over run_id/record_index, so a resumed run cannot reissue one (FR-003, FR-015b)."
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The run that produced this record; resolves to exactly one manifest (FR-003, FR-029)."
+    },
+    "record_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The slot this record occupies in the run. Dense over [0, record_count) in a complete corpus (FR-012c, SC-013)."
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Domain prompt document identity as name@sha256-prefix (FR-003, FR-008a)."
+    },
+    "subdomain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The subdomain assigned to this slot by a seeded choice from the domain prompt document's declared list (FR-008d, FR-012b). Reproducible from the seed, unlike `scenario`."
+    },
+    "scenario": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The specific situation the model elaborated within the assigned subdomain (FR-008b). Model text; not reproducible."
+    },
+    "metadata": {
+      "$ref": "#/$defs/TicketMetadata"
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/ConversationTurn"
+      },
+      "description": "Ordered conversation turns. No maximum is assumed (spec Edge Cases); the per-run range is a configuration bound, not a contract bound (FR-009d)."
+    },
+    "quality": {
+      "$ref": "#/$defs/RecordQuality"
+    },
+    "generation": {
+      "$ref": "#/$defs/GenerationInfo"
+    }
+  },
+  "$defs": {
+    "Role": {
+      "type": "string",
+      "enum": [
+        "customer",
+        "agent"
+      ],
+      "description": "Closed set (FR-005)."
+    },
+    "ConversationTurn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "role",
+        "content"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position in the conversation; ascends contiguously from 0 (FR-004)."
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Turn text. Must not be empty or whitespace-only (FR-009). Any Unicode is valid, including non-Latin, emoji, and RTL (spec Edge Cases)."
+        }
+      }
+    },
+    "TicketMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "priority",
+        "channel",
+        "resolution_status",
+        "created_at"
+      ],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "billing",
+            "technical",
+            "account",
+            "shipping",
+            "product",
+            "other"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "urgent"
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "email",
+            "chat",
+            "phone",
+            "web_form"
+          ]
+        },
+        "resolution_status": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "unresolved",
+            "escalated",
+            "abandoned"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timezone-aware. A seeded draw from the run's configured date window, assigned before the model is called (FR-006, FR-006a)."
+        },
+        "resolved_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "created_at plus a seeded duration. Present when and only when resolution_status is 'resolved' (FR-006b); the two allOf branches below enforce it."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resolution_status": {
+                "const": "resolved"
+              }
+            },
+            "required": [
+              "resolution_status"
+            ]
+          },
+          "then": {
+            "required": [
+              "resolved_at"
+            ],
+            "properties": {
+              "resolved_at": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "resolution_status": {
+                "not": {
+                  "const": "resolved"
+                }
+              }
+            },
+            "required": [
+              "resolution_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolved_at": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RecordQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coherence_score",
+        "rubric_id"
+      ],
+      "properties": {
+        "coherence_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Judge score retained so the corpus can be filtered by quality without re-judging (FR-009i). Every written record scores at or above the run's threshold (SC-009)."
+        },
+        "rubric_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Rubric version that produced the score; a score is meaningless without it (FR-009g)."
+        }
+      }
+    },
+    "GenerationInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "judge_model_id"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The model that actually produced the text. Per-record because a refusal fallback can change it mid-run (FR-027)."
+        },
+        "judge_model_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The model that actually scored the record."
+        }
+      }
+    }
+  }
+}

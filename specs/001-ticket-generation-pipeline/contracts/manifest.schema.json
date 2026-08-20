@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arpieb/customer-support-ticket-multiturn-dataset/schemas/manifest/1.0.0",
+  "title": "RunManifest",
+  "description": "How one generation run produced its output (Constitution Principles II and III). Validatable per FR-028; validation names any missing element. The reconciliation rule records_generated - sum(discards) == records_written is enforced by the model, not expressible here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "run_id",
+    "schema_version",
+    "seed",
+    "config",
+    "code_revision",
+    "input_hashes",
+    "models",
+    "started_at",
+    "completed_at",
+    "records_generated",
+    "records_written",
+    "discards",
+    "retry_counts",
+    "resumed_count",
+    "segments",
+    "duplicate_count",
+    "composition_requested",
+    "composition_assigned",
+    "composition_achieved",
+    "coherence_score_distribution",
+    "output_filename",
+    "output_sha256",
+    "environment_overrides"
+  ],
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referenced by every record the run produced, and the manifest's own filename (FR-003a, FR-029a). Fresh per run instance; a resume keeps it, a rerun gets a new one."
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "The record contract version this run wrote against (FR-025)."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "The explicit run seed (FR-025, Principle II)."
+    },
+    "config": {
+      "type": "object",
+      "description": "The full serialized configuration, verbatim (FR-025)."
+    },
+    "code_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "dirty"
+      ],
+      "properties": {
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dirty": {
+          "type": "boolean",
+          "description": "True when the working tree had uncommitted changes. A SHA recorded from a dirty tree would misrepresent what produced the artifact (research R10)."
+        },
+        "unavailable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "input_hashes": {
+      "type": "object",
+      "description": "Path -> sha256 for every run input: prompt document (FR-008a), rubric (FR-009g), config file.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minProperties": 1
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator",
+        "judge"
+      ],
+      "properties": {
+        "generator": {
+          "$ref": "#/$defs/ModelRecord"
+        },
+        "judge": {
+          "$ref": "#/$defs/ModelRecord"
+        }
+      },
+      "description": "Both roles recorded: the judge shapes which records survive and is therefore a non-deterministic input (FR-009j, FR-027). The judge may be the same model as the generator and is by default; self-preference bias is an accepted risk checked by SC-011 calibration, not by a structural rule."
+    },
+    "fallbacks_used": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Model ID -> records it served after a refusal fallback. A corpus may contain records from more than one model (FR-009n); each record names its own producer (FR-027a). Empty when no fallback occurred."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "records_generated": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Every response received from the generating model, counted once per attempt; a slot retried three times contributes three (FR-026a). The shared denominator for every discard-rate threshold, so a threshold cannot be computed two ways."
+    },
+    "records_written": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "discards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DiscardAccount"
+      },
+      "description": "Every discarded record by count and reason. Silent dropping is prohibited (Principle III, FR-026)."
+    },
+    "retry_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Transport retries by class. Deliberately separate from discards: a degraded provider and a defective generator are different facts (FR-012d)."
+    },
+    "resumed_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many times this run was resumed; an interruption is a material fact about how the corpus was produced (FR-015d)."
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Segment"
+      },
+      "description": "One entry per run or resume, each with its own code revision and record range (FR-015f). A changed revision does not refuse a resume; the corpus is described honestly instead."
+    },
+    "duplicate_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Exact duplicate conversations produced within this run, matched on the Unicode-normalized turn sequence with metadata excluded (FR-034, FR-039). Reported, never discarded; never compared against earlier corpora."
+    },
+    "composition_requested": {
+      "$ref": "#/$defs/Composition"
+    },
+    "composition_assigned": {
+      "$ref": "#/$defs/Composition",
+      "description": "What apportionment assigned to slots before generation. Requested vs assigned is apportionment error; assigned vs achieved is discard-induced drift (FR-031a)."
+    },
+    "composition_achieved": {
+      "$ref": "#/$defs/Composition"
+    },
+    "coherence_score_distribution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Counts in fixed 0.05 buckets across the 0-1 range, plus count, min, max, mean, and median (FR-038, SC-009). Fixed buckets are required so two runs are comparable without re-deriving anything."
+    },
+    "output_filename": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The artifact this manifest describes (FR-025b). The manifest itself is named <run_id>.manifest.json and sits beside it (FR-029a)."
+    },
+    "output_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Checksum of the artifact this manifest describes."
+    },
+    "environment_overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Environment settings that could change which model served a request, how it was routed, or its parameters \u2014 endpoint, profile, inference region (FR-008c). Credentials are never recorded here or anywhere else (FR-008). Empty when the environment carried no such setting."
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The declared run budget and the actual spend against it (FR-012f). Absent when no budget was declared.",
+      "required": [
+        "spent_seconds",
+        "spent_model_calls"
+      ],
+      "properties": {
+        "max_runtime_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_model_calls": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "spent_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spent_model_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exhausted": {
+          "type": "boolean",
+          "description": "True when the run stopped because a declared ceiling was reached."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ModelRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "effort",
+        "max_tokens",
+        "thinking",
+        "sampling_seed"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "thinking": {
+          "type": "string"
+        },
+        "sampling_seed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Null states plainly that no sampling seed was used, rather than implying reproducibility the run cannot deliver (FR-010)."
+        }
+      }
+    },
+    "DiscardAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "count"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "structural_invalid",
+            "turn_count_out_of_range",
+            "schema_invalid",
+            "coherence_below_threshold",
+            "unjudgeable",
+            "privacy_finding",
+            "detector_error",
+            "model_refusal",
+            "attempts_exhausted"
+          ],
+          "description": "Closed set: an open-ended reason string would make FR-026's reconciliation unauditable."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "priority",
+        "channel",
+        "resolution_status"
+      ],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "priority": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "channel": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "resolution_status": {
+          "$ref": "#/$defs/Distribution"
+        }
+      }
+    },
+    "Distribution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "minProperties": 1,
+      "description": "Enum member -> proportion. Sums to 1.0 within epsilon; only members of the corresponding enum are permitted (FR-030, FR-032)."
+    },
+    "Segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code_revision",
+        "started_at",
+        "completed_at",
+        "first_record_index",
+        "last_record_index"
+      ],
+      "properties": {
+        "code_revision": {
+          "$ref": "#/properties/code_revision"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "first_record_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_record_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
