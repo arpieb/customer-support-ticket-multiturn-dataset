@@ -60,8 +60,8 @@ and time scale accordingly (spec Assumptions). Seeded choices must be order-inde
 must be written in deterministic order (FR-012c). The privacy gate must never depend on a remote service
 (FR-024). Nothing incomplete may appear in the release path (FR-015).
 
-**Scale/Scope**: ~100,000 records per release artifact; conversations of unbounded turn count; 60
-functional requirements across four user stories.
+**Scale/Scope**: ~100,000 records per release artifact; conversations of unbounded turn count; 104
+functional requirements and 13 success criteria across four user stories.
 
 ## Constitution Check
 
@@ -84,6 +84,12 @@ JSONL and no alternative export exists. Release-path artifacts separated by dire
 **PASS**, and load-bearing: `data/interim/` holds staging and checkpoints, `data/release/` receives an
 atomic move only on success. Large artifacts as config + manifest + checksums rather than committed
 directly — **PASS**, `data/` is git-ignored and the manifest carries `output_sha256`.
+
+**Post-task re-check (after `/speckit-analyze`)**: The analysis pass found one CRITICAL: as first written,
+`tasks.md` gave User Story 1 the staging→release move, so the MVP increment would have been a generation
+pipeline writing to the release path with no PII scan — a Principle IV violation that a prose caveat does
+not cure. The task list now withholds the release move until the privacy gate exists and guards it behind
+the floor probe, so the gate is structural rather than remembered. Gate IV holds as argued below.
 
 **Post-design re-check (after Phase 1)**: Re-evaluated against [data-model.md](./data-model.md) and
 [contracts/](./contracts/), and again after the pre-implementation checklist resolved CHK029 and CHK053.
@@ -135,19 +141,20 @@ specs/001-ticket-generation-pipeline/
 ```text
 src/ticket_dataset/
 ├── __init__.py               # Public API re-exports — the stable surface
+├── errors.py                 # TicketDatasetError hierarchy; no exception may carry a matched PII value
 ├── schema/
 │   ├── record.py             # TicketRecord, ConversationTurn, TicketMetadata, RecordQuality, GenerationInfo
 │   ├── enums.py              # Role, Category, Priority, Channel, ResolutionStatus
 │   ├── version.py            # SCHEMA_VERSION, semver parsing
 │   └── export.py             # JSON Schema export + CI drift check
 ├── config/
-│   ├── models.py             # GenerationConfig, Composition, ModelSpec (Pydantic)
+│   ├── models.py             # GenerationConfig, Composition, ModelSpec, Budget, TimeWindow (Pydantic)
 │   ├── loader.py             # Total validation; ConfigError with all problems at once (FR-011)
 │   └── defaults.py           # Documented default distribution and turn range (FR-033)
 ├── planning/
 │   ├── apportion.py          # Largest-remainder apportionment; achievability precondition (R3, FR-030–FR-032, FR-031b)
 │   ├── tolerance.py          # Per-member tolerance check returning breaches (FR-031)
-│   ├── slots.py              # Slot construction; assignment, turn count, scenario nonce
+│   ├── slots.py              # Slot construction; assignment, turn count, seeded subdomain, seeded timestamps
 │   └── seeding.py            # slot_random(seed, position, attempt) — counter-based derivation (R2)
 ├── model/
 │   ├── client.py             # ModelClient protocol, ModelRole, ModelResponse
@@ -159,7 +166,8 @@ src/ticket_dataset/
 │   ├── prompts.py            # System/user assembly from committed documents; cache-stable prefix
 │   ├── domain_doc.py         # Parses the prompt document's declared subdomain list (FR-008d)
 │   ├── generator.py          # Slot -> conversation, structural validation (FR-009, FR-009b)
-│   ├── judge.py              # Coherence scoring against the committed rubric (FR-009f–FR-009l)
+│   ├── rubric.py             # Parses the rubric's id, version, criteria, and weights (FR-009p)
+│   ├── judge.py              # Coherence scoring as the weighted mean of declared criteria (FR-009f–FR-009q)
 │   └── pipeline.py           # Bounded concurrency, retries, circuit breaker, reorder buffer
 ├── privacy/
 │   ├── registry.py           # Detector registry, floor assertion, exception suppression (FR-017, FR-018)
@@ -169,8 +177,10 @@ src/ticket_dataset/
 │   ├── quarantine.py         # Appends privacy-discarded records outside the release path (FR-021b)
 │   └── exceptions_store.py   # Fingerprint-based approved exceptions (FR-022, R9)
 ├── run/
+│   ├── enums.py              # PIICategory, DiscardReason, Verdict, RunOutcome (FR-018b, FR-026b, FR-036b)
 │   ├── run.py                # GenerationRun.execute() / .resume() — orchestration
-│   ├── writer.py             # Ordered streaming writer, destination claim, staging -> atomic release move (R5, FR-014a)
+│   ├── writer.py             # Ordered streaming writer, destination claim, staging; the release move is
+│   │                         #   added with the privacy gate and refuses without it (R5, FR-014a, FR-016)
 │   ├── checkpoint.py         # Checkpoint write/read, truncation resume, fingerprint match, candidate discovery (R6, FR-015h)
 │   ├── retention.py          # Drops staging and checkpoint on success; keeps report and quarantine (FR-015i)
 │   ├── manifest.py           # RunManifest build, `<run_id>.manifest.json` naming, reconciliation validation (FR-026, FR-028, FR-029a)
@@ -192,8 +202,13 @@ privacy/
 
 configs/
 ├── smoke.toml                # 20 records, tolerance widened to 10pp per FR-031b
+├── smoke16.toml              # smoke.toml at concurrency 16 — the SC-013 comparison pair
 ├── medium.toml               # Interrupt/resume scenario
-└── release.toml              # 100,000 records — the release acceptance run
+├── billing-heavy.toml        # 500 records, skewed composition (SC-008)
+├── planted-pii.toml          # Seeded to emit identifier-shaped content (SC-004)
+├── bad-composition.toml      # Proportions summing to 1.4 — refusal fixture (FR-032)
+├── tight-tolerance.toml      # 20 records at 2pp — unachievable-tolerance fixture (FR-031b)
+└── release.toml              # 100,000 records with a declared budget — the release acceptance run
 
 tests/
 ├── contract/                 # Public API surface, schema export drift, CLI exit statuses
@@ -202,6 +217,7 @@ tests/
 └── fixtures/
     ├── responses/            # Scripted model responses: valid, malformed, refusal, PII-bearing
     ├── configs/              # Valid and deliberately invalid configurations
+    ├── canaries/             # Committed synthetic probe values, one per floor type (FR-018a)
     └── manifests/            # Valid and defective manifests
 
 data/
