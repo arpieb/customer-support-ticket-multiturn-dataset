@@ -109,39 +109,39 @@ exchange — no manifest, privacy, or composition machinery required.
 
 ### Committed prompt inputs
 
-- [ ] T035 [P] [US1] Author `prompts/domain.md` declaring the support domain **and a machine-readable subdomain list** (FR-008a, FR-008d)
-- [ ] T036 [P] [US1] Author `prompts/coherence-rubric.md` declaring `rubric_id`, version, criteria, and per-criterion weights summing to 1 (FR-009g, FR-009p)
-- [ ] T037 [US1] Implement the domain document parser in `src/ticket_dataset/generation/domain_doc.py`, raising `PromptDocumentError` when no usable subdomain list is declared (FR-008d)
-- [ ] T038 [P] [US1] Add unit tests in `tests/unit/test_domain_doc.py` for a valid document, an empty list, and a malformed declaration
-- [ ] T039 [US1] Implement the rubric parser in `src/ticket_dataset/generation/rubric.py`, refusing a rubric whose weights do not sum to 1 (FR-009p)
-- [ ] T040 [P] [US1] Add unit tests in `tests/unit/test_rubric.py` covering weight validation and `rubric_id` extraction
+- [X] T035 [P] [US1] Author `prompts/domain.md` declaring the support domain **and a machine-readable subdomain list** (FR-008a, FR-008d)
+- [X] T036 [P] [US1] Author `prompts/coherence-rubric.md` declaring `rubric_id`, version, criteria, and per-criterion weights summing to 1 (FR-009g, FR-009p)
+- [X] T037 [US1] Implement the domain document parser in `src/ticket_dataset/generation/domain_doc.py`, raising `PromptDocumentError` when no usable subdomain list is declared (FR-008d)
+- [X] T038 [P] [US1] Add unit tests in `tests/unit/test_domain_doc.py` for a valid document, an empty list, and a malformed declaration
+- [X] T039 [US1] Implement the rubric parser in `src/ticket_dataset/generation/rubric.py`, refusing a rubric whose weights do not sum to 1 (FR-009p)
+- [X] T040 [P] [US1] Add unit tests in `tests/unit/test_rubric.py` covering weight validation and `rubric_id` extraction
 
 ### Generation and judging
 
-- [ ] T041 [US1] Implement prompt assembly in `src/ticket_dataset/generation/prompts.py` with a **byte-stable system prefix** (domain document, rubric) and per-slot user content (assignment, turn count, language, subdomain), so the prefix caches across a run (contracts/model-io.md)
-- [ ] T042 [US1] Implement `AnthropicModelClient` in `src/ticket_dataset/model/anthropic_client.py` — the only module importing `anthropic` — with `output_config.format`, adaptive thinking, configured effort, refusal fallback, and the served model id surfaced on every response (FR-027a, research R1)
-- [ ] T043 [US1] Implement generation and structural validation in `src/ticket_dataset/generation/generator.py`: parse, validate against `GeneratedConversation`, and check turn count, customer-first alternation, and non-empty content, discarding under the named reason rather than coercing (FR-009, FR-009b, FR-009d)
-- [ ] T044 [P] [US1] Add unit tests in `tests/unit/test_structural_validation.py` for each rejection path — unparseable, wrong turn count, agent-first, non-alternating, empty turn, truncated response — asserting each maps to its own `DiscardReason`, and specifically that a turn-count violation is accounted under `turn_count_out_of_range` rather than `structural_invalid` (FR-009b, FR-009m)
-- [ ] T045 [US1] Implement coherence judging in `src/ticket_dataset/generation/judge.py`, computing the score as the **weighted mean of per-criterion scores** using the rubric's declared weights rather than any holistic number the model returns (FR-009f, FR-009p)
-- [ ] T046 [P] [US1] Add unit tests in `tests/unit/test_judge.py` asserting the weighted mean is computed from criteria, that a below-threshold score discards under `coherence_below_threshold`, and that an unscorable record discards under `unjudgeable` after the configured attempts (FR-009h, FR-009l)
-- [ ] T047 [US1] Implement the concurrent pipeline in `src/ticket_dataset/generation/pipeline.py`: bounded `asyncio` worker pool, slot-level retry with the single attempts knob, and the consecutive-failure circuit breaker (FR-012a, FR-009o, FR-012d, spec Edge Cases)
+- [X] T041 [US1] Implement prompt assembly in `src/ticket_dataset/generation/prompts.py` with a **byte-stable system prefix** (domain document, rubric) and per-slot user content (assignment, turn count, language, subdomain), so the prefix caches across a run (contracts/model-io.md)
+- [X] T042 [US1] Implement `AnthropicModelClient` in `src/ticket_dataset/model/anthropic_client.py` — the only module importing `anthropic` — with `output_config.format`, adaptive thinking, configured effort, refusal fallback, and the served model id surfaced on every response (FR-027a, research R1)
+- [X] T043 [US1] Implement generation and structural validation in `src/ticket_dataset/generation/generator.py`: parse, validate against `GeneratedConversation`, and check turn count, customer-first alternation, and non-empty content, discarding under the named reason rather than coercing (FR-009, FR-009b, FR-009d)
+- [X] T044 [P] [US1] Add unit tests in `tests/unit/test_structural_validation.py` for each rejection path — unparseable, wrong turn count, agent-first, non-alternating, empty turn, truncated response — asserting each maps to its own `DiscardReason`, and specifically that a turn-count violation is accounted under `turn_count_out_of_range` rather than `structural_invalid` (FR-009b, FR-009m)
+- [X] T045 [US1] Implement coherence judging in `src/ticket_dataset/generation/judge.py`, computing the score as the **weighted mean of per-criterion scores** using the rubric's declared weights rather than any holistic number the model returns (FR-009f, FR-009p)
+- [X] T046 [P] [US1] Add unit tests in `tests/unit/test_judge.py` asserting the weighted mean is computed from criteria, that a below-threshold score discards under `coherence_below_threshold`, and that an unscorable record discards under `unjudgeable` after the configured attempts (FR-009h, FR-009l)
+- [X] T047 [US1] Implement the concurrent pipeline in `src/ticket_dataset/generation/pipeline.py`: bounded `asyncio` worker pool, slot-level retry with the single attempts knob, and the consecutive-failure circuit breaker (FR-012a, FR-009o, FR-012d, spec Edge Cases)
 
 ### Ordered output
 
-- [ ] T048 [US1] Implement the ordered writer in `src/ticket_dataset/run/writer.py`: a reorder buffer bounded by `max_concurrency`, ascending-position writes with deterministic serialization, and the destination claim at run start. Output stops at the staging file under `data/interim/<run_id>/`; the writer MUST NOT expose a release-path move yet (FR-012, FR-012c, FR-014, FR-014a, research R5)
-- [ ] T049 [P] [US1] Add unit tests in `tests/unit/test_writer.py` asserting output order is ascending by position regardless of completion order, that buffer size stays bounded, and that a claimed destination refuses a second run (FR-012c, FR-014a)
-- [ ] T050 [P] [US1] Implement turn-sequence fingerprinting and duplicate counting in `src/ticket_dataset/dedup.py`, Unicode-normalized, metadata excluded, reported never discarded (FR-034, FR-039, research R13)
-- [ ] T051 [P] [US1] Add unit tests in `tests/unit/test_dedup.py` asserting identical conversations with differing metadata count as duplicates, and that duplicates are never removed
-- [ ] T052 [US1] Implement `GenerationRun.execute()` in `src/ticket_dataset/run/run.py` wiring config validation → slot planning → concurrent generation → judging → schema validation → ordered write (FR-007)
-- [ ] T053 [US1] Implement the `generate` command in `src/ticket_dataset/cli/main.py` with `--config`, `--seed`, `--out`, `--dry-run`, `--quiet`, progress on stderr, and the four exit statuses (contracts/cli.md, FR-036b)
-- [ ] T054 [P] [US1] Add `configs/smoke.toml` (20 records, `composition_tolerance_pp = 10.0` — 2pp is unachievable at 20 records per FR-031b — and a narrow time window) and `configs/smoke16.toml`, identical but `max_concurrency = 16`: the pair T056 compares
+- [X] T048 [US1] Implement the ordered writer in `src/ticket_dataset/run/writer.py`: a reorder buffer bounded by `max_concurrency`, ascending-position writes with deterministic serialization, and the destination claim at run start. Output stops at the staging file under `data/interim/<run_id>/`; the writer MUST NOT expose a release-path move yet (FR-012, FR-012c, FR-014, FR-014a, research R5)
+- [X] T049 [P] [US1] Add unit tests in `tests/unit/test_writer.py` asserting output order is ascending by position regardless of completion order, that buffer size stays bounded, and that a claimed destination refuses a second run (FR-012c, FR-014a)
+- [X] T050 [P] [US1] Implement turn-sequence fingerprinting and duplicate counting in `src/ticket_dataset/dedup.py`, Unicode-normalized, metadata excluded, reported never discarded (FR-034, FR-039, research R13)
+- [X] T051 [P] [US1] Add unit tests in `tests/unit/test_dedup.py` asserting identical conversations with differing metadata count as duplicates, and that duplicates are never removed
+- [X] T052 [US1] Implement `GenerationRun.execute()` in `src/ticket_dataset/run/run.py` wiring config validation → slot planning → concurrent generation → judging → schema validation → ordered write (FR-007)
+- [X] T053 [US1] Implement the `generate` command in `src/ticket_dataset/cli/main.py` with `--config`, `--seed`, `--out`, `--dry-run`, `--quiet`, progress on stderr, and the four exit statuses (contracts/cli.md, FR-036b)
+- [X] T054 [P] [US1] Add `configs/smoke.toml` (20 records, `composition_tolerance_pp = 10.0` — 2pp is unachievable at 20 records per FR-031b — and a narrow time window) and `configs/smoke16.toml`, identical but `max_concurrency = 16`: the pair T056 compares
 
 ### US1 tests
 
-- [ ] T055 [P] [US1] Add an integration test in `tests/integration/test_generate_smoke.py` driving the full pipeline against `FakeModelClient`: exact record count, 100% schema conformance, customer-first alternation, turn counts inside the range (SC-002)
-- [ ] T056 [P] [US1] Add an integration test in `tests/integration/test_concurrency_invariance.py` asserting two runs at concurrency 1 and 16 produce identical per-position seeded choices — assignment, subdomain, turn count, and timestamps — exactly the equivalence FR-010a defines (SC-013)
-- [ ] T057 [P] [US1] Add an integration test in `tests/integration/test_rerun_equivalence.py` running the same seed and config twice and asserting equivalence per FR-010a: at every shared `record_index` the assignment, subdomain, turn count, and timestamps match, and composition matches within tolerance. Compare on `record_index`, **never** on `record_id` — FR-003a gives each run a fresh `run_id`, so identifiers differ by design — and do not assert equal record counts, since FR-009q makes survival through the coherence gate non-deterministic (SC-003, FR-010a)
-- [ ] T058 [P] [US1] Add a contract test in `tests/contract/test_cli_generate.py` asserting exit `0` on success, `2` on a refused config, and that stdout carries machine-readable output only (contracts/cli.md)
+- [X] T055 [P] [US1] Add an integration test in `tests/integration/test_generate_smoke.py` driving the full pipeline against `FakeModelClient`: exact record count, 100% schema conformance, customer-first alternation, turn counts inside the range (SC-002)
+- [X] T056 [P] [US1] Add an integration test in `tests/integration/test_concurrency_invariance.py` asserting two runs at concurrency 1 and 16 produce identical per-position seeded choices — assignment, subdomain, turn count, and timestamps — exactly the equivalence FR-010a defines (SC-013)
+- [X] T057 [P] [US1] Add an integration test in `tests/integration/test_rerun_equivalence.py` running the same seed and config twice and asserting equivalence per FR-010a: at every shared `record_index` the assignment, subdomain, turn count, and timestamps match, and composition matches within tolerance. Compare on `record_index`, **never** on `record_id` — FR-003a gives each run a fresh `run_id`, so identifiers differ by design — and do not assert equal record counts, since FR-009q makes survival through the coherence gate non-deterministic (SC-003, FR-010a)
+- [X] T058 [P] [US1] Add a contract test in `tests/contract/test_cli_generate.py` asserting exit `0` on success, `2` on a refused config, and that stdout carries machine-readable output only (contracts/cli.md)
 
 **Checkpoint**: A corpus can be generated and validated, in `data/interim/` only. No code path to the
 release path exists yet — that is the structural reason nothing unscanned can reach it, rather than a

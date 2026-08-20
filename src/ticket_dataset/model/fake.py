@@ -7,6 +7,7 @@ model could not be relied on to produce.
 """
 
 import json
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -64,6 +65,9 @@ class FakeModelClient(ModelClient):
     scripts: dict[ModelRole, list[Script]] = field(default_factory=dict)
     responder: Callable[[ModelRole, str, str], ModelResponse] | None = None
     judge_score: float = 0.95
+    #: Criteria the fake judge scores. ``None`` means read them out of the rubric it was handed,
+    #: which is what a real judge does and what keeps the fixture usable with any rubric.
+    judge_criteria: list[str] | None = None
     model_id: str = DEFAULT_MODEL_ID
     calls: list[tuple[ModelRole, str]] = field(default_factory=list)
 
@@ -102,11 +106,9 @@ class FakeModelClient(ModelClient):
         served = FALLBACK_MODEL_ID if script.behavior == "refusal_rescued" else self.model_id
 
         if role is ModelRole.JUDGE:
+            criteria = self.judge_criteria or _criteria_from_rubric(system)
             payload = script.payload or {
-                "criteria": {
-                    "single_issue": self.judge_score,
-                    "role_consistency": self.judge_score,
-                },
+                "criteria": dict.fromkeys(criteria, self.judge_score),
                 "justification": "scripted verdict",
             }
             return ModelResponse(text=json.dumps(payload), model_id=served)
@@ -117,6 +119,20 @@ class FakeModelClient(ModelClient):
             pii=script.behavior == "pii",
         )
         return ModelResponse(text=json.dumps(payload), model_id=served)
+
+
+_CRITERION_HEADING = re.compile(r"^##\s+([a-z][a-z0-9_]*)\s+\(weight", re.MULTILINE)
+
+
+def _criteria_from_rubric(system: str) -> list[str]:
+    """Read the criterion names out of the rubric the judge was handed.
+
+    A real judge reads the rubric it is given; a fake that answered with a fixed criterion set
+    would pass its own tests and fail against any rubric but one. Falling back to a single
+    criterion keeps a rubric-less unit test working.
+    """
+    found = _CRITERION_HEADING.findall(system)
+    return found or ["single_issue"]
 
 
 def _requested_turn_count(user: str, default: int = 4) -> int:
