@@ -35,6 +35,8 @@ from ticket_dataset.generation.rubric import Rubric, load_rubric
 from ticket_dataset.model.client import ModelClient, ModelRefusal, ModelRole, ModelUnavailable
 from ticket_dataset.model.wire import GeneratedConversation, JudgeVerdict, response_schema
 from ticket_dataset.planning.slots import Slot, assign_subdomains, plan_slots
+from ticket_dataset.planning.tolerance import attribute as attribute_drift
+from ticket_dataset.planning.tolerance import check as tolerance_check
 from ticket_dataset.privacy.canaries import FLOOR_CANARIES
 from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
 from ticket_dataset.privacy.exceptions_store import ExceptionStore, fingerprint
@@ -409,12 +411,16 @@ class GenerationRun:
             quarantine.close()
             checkpoint_now()
 
-        failures = self._threshold_failures(stats)
-        if failures and outcome_state is RunOutcome.COMPLETED:
-            outcome_state = RunOutcome.FAILED
-
         completed_at = datetime.now(UTC)
         achieved = self._achieved_composition(writer.path)
+
+        # The composition tolerance is only meaningful once every slot has been attempted, so a
+        # stopped run is not judged on it (FR-037a).
+        failures = self._threshold_failures(
+            stats, achieved if outcome_state is RunOutcome.COMPLETED else None
+        )
+        if failures and outcome_state is RunOutcome.COMPLETED:
+            outcome_state = RunOutcome.FAILED
 
         artifact: Path | None = None
         if outcome_state is RunOutcome.COMPLETED:
@@ -450,6 +456,9 @@ class GenerationRun:
             composition_requested=self.config.effective_composition.as_dict(),
             composition_assigned=self.assigned_composition,
             composition_achieved=achieved,
+            composition_drift_pp=attribute_drift(
+                self.config.effective_composition.as_dict(), self.assigned_composition, achieved
+            ),
             scan=self._scan_report(),
             quarantine_path=str(quarantine.path) if quarantine.count else None,
             quarantine_count=quarantine.count,
@@ -656,20 +665,36 @@ class GenerationRun:
 
         return hook
 
-    def _threshold_failures(self, stats: PipelineStats) -> list[str]:
+    def _threshold_failures(
+        self, stats: PipelineStats, achieved: dict[str, dict[str, float]] | None = None
+    ) -> list[str]:
         """Run-level thresholds, evaluated over the FR-026a denominator.
 
         A generator emitting identifiers at volume is defective, and filtering around it would
         mask the defect — which is why these fail the run rather than merely being reported
         (FR-009k, FR-021a).
+
+        The composition tolerance is evaluated here and only here, at completion. A partial corpus
+        has no achieved composition — apportionment is only satisfied once every slot has been
+        attempted — so an early check would measure incompleteness rather than drift (FR-037a).
         """
         generated = stats.records_generated
-        if generated == 0:
-            return []
-        return [
-            breach.describe()
-            for breach in discard_rate_breaches(self.config, stats.discards, generated)
-        ]
+        failures: list[str] = []
+        if generated:
+            failures.extend(
+                breach.describe()
+                for breach in discard_rate_breaches(self.config, stats.discards, generated)
+            )
+        if achieved:
+            failures.extend(
+                breach.describe()
+                for breach in tolerance_check(
+                    self.config.effective_composition.as_dict(),
+                    achieved,
+                    self.config.composition_tolerance_pp,
+                )
+            )
+        return failures
 
 
 def execute_run(config: GenerationConfig, seed: int, model_client: ModelClient) -> RunResult:

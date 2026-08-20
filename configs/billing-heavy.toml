@@ -1,0 +1,35 @@
+# A composition deliberately skewed toward billing, at a corpus size where the 2pp default
+# tolerance is achievable: 500 records puts the apportionment floor at 0.2pp (FR-031b).
+record_count = 500
+output_path = "data/release/billing-heavy.jsonl"
+max_concurrency = 8
+
+[turns]
+min = 4
+max = 10
+
+[composition.category]
+billing = 0.50
+technical = 0.20
+account = 0.15
+shipping = 0.08
+product = 0.05
+other = 0.02
+
+[composition.priority]
+low = 0.15
+normal = 0.45
+high = 0.25
+urgent = 0.15
+
+[composition.channel]
+email = 0.45
+chat = 0.35
+phone = 0.12
+web_form = 0.08
+
+[composition.resolution_status]
+resolved = 0.65
+unresolved = 0.10
+escalated = 0.20
+abandoned = 0.05

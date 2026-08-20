@@ -46,6 +46,7 @@ class RunReport:
     artifact_path: str | None = None
     manifest_path: str | None = None
     failures: list[str] = field(default_factory=list)
+    composition_drift_pp: dict[str, dict[str, float]] = field(default_factory=dict)
     resumed_count: int = 0
     budget: dict[str, Any] | None = None
 
@@ -88,6 +89,10 @@ class RunReport:
             "composition_requested": self.composition_requested,
             "composition_assigned": self.composition_assigned,
             "composition_achieved": self.composition_achieved,
+            # Requested to assigned is apportionment error; assigned to achieved is discard-
+            # induced drift. Without the split a tolerance failure has no attributable cause,
+            # and the two call for entirely different responses (FR-031a).
+            "composition_drift_pp": self.composition_drift_pp,
             "resumed_count": self.resumed_count,
             "failures": self.failures,
             "artifact_path": self.artifact_path,
@@ -144,6 +149,13 @@ class RunReport:
             )
             if self.quarantine_count:
                 lines.append(f"    quarantined: {self.quarantine_count} in {self.quarantine_path}")
+        if self.composition_achieved:
+            worst = _worst_drift(self.composition_requested, self.composition_achieved)
+            if worst is not None:
+                dimension, member, drift = worst
+                lines.append(
+                    f"  composition: worst member {dimension}.{member} at {drift:.2f}pp drift"
+                )
         for failure in self.failures:
             lines.append(f"  FAILED: {failure}")
         if self.artifact_path:
@@ -163,6 +175,20 @@ class RunReport:
         path = directory / name
         path.write_text(self.to_json() + "\n")
         return path
+
+
+def _worst_drift(
+    requested: dict[str, dict[str, float]], achieved: dict[str, dict[str, float]]
+) -> tuple[str, str, float] | None:
+    """The single member furthest from its request, which is what the tolerance judges."""
+    worst: tuple[str, str, float] | None = None
+    for dimension, wanted in requested.items():
+        got = achieved.get(dimension, {})
+        for member in set(wanted) | set(got):
+            drift = abs(got.get(member, 0.0) - wanted.get(member, 0.0)) * 100
+            if worst is None or drift > worst[2]:
+                worst = (dimension, member, drift)
+    return worst
 
 
 def build_scan_report(findings: list[Finding], **kwargs: Any) -> ScanReport:

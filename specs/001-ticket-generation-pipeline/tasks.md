@@ -215,12 +215,12 @@ input hashes, and counts, that counts reconcile exactly, and that every record r
 **Independent test**: Generate with a specified composition; confirm every member of every dimension lands
 within ±2pp and that requested, assigned, and achieved distributions are all reported.
 
-- [ ] T096 [US4] Implement per-member tolerance evaluation in `src/ticket_dataset/planning/tolerance.py`, returning one `Breach` per offending member with dimension, member, requested, achieved, and drift (FR-031)
-- [ ] T097 [P] [US4] Add unit tests in `tests/unit/test_tolerance.py` asserting the worst member decides, that a failure names the member, and that an aggregate-passing but member-failing distribution fails (FR-031)
-- [ ] T098 [US4] Record all three distributions — requested, assigned, achieved — in `src/ticket_dataset/run/manifest.py` and `src/ticket_dataset/run/report.py`, so apportionment error and discard-induced drift are distinguishable (FR-031a)
-- [ ] T099 [US4] Wire composition refusals into `load_config()` in `src/ticket_dataset/config/loader.py`: proportions not summing, unknown member, a proportion too small to round, and a tolerance unachievable at the corpus size (FR-031b, FR-032)
-- [ ] T100 [P] [US4] Add `configs/billing-heavy.toml` (500 records), `configs/bad-composition.toml` (proportions summing to 1.4), and `configs/tight-tolerance.toml` (20 records at 2pp)
-- [ ] T101 [P] [US4] Add an integration test in `tests/integration/test_composition.py` asserting per-member drift within ±2pp, all three distributions reported, and both refusal configs exiting `2` before any model call (SC-008, FR-032)
+- [X] T096 [US4] Implement per-member tolerance evaluation in `src/ticket_dataset/planning/tolerance.py`, returning one `Breach` per offending member with dimension, member, requested, achieved, and drift (FR-031)
+- [X] T097 [P] [US4] Add unit tests in `tests/unit/test_tolerance.py` asserting the worst member decides, that a failure names the member, and that an aggregate-passing but member-failing distribution fails (FR-031)
+- [X] T098 [US4] Record all three distributions — requested, assigned, achieved — in `src/ticket_dataset/run/manifest.py` and `src/ticket_dataset/run/report.py`, so apportionment error and discard-induced drift are distinguishable (FR-031a)
+- [X] T099 [US4] Wire composition refusals into `load_config()` in `src/ticket_dataset/config/loader.py`: proportions not summing, unknown member, a proportion too small to round, and a tolerance unachievable at the corpus size (FR-031b, FR-032)
+- [X] T100 [P] [US4] Add `configs/billing-heavy.toml` (500 records), `configs/bad-composition.toml` (proportions summing to 1.4), and `configs/tight-tolerance.toml` (20 records at 2pp)
+- [X] T101 [P] [US4] Add an integration test in `tests/integration/test_composition.py` asserting per-member drift within ±2pp, all three distributions reported, and both refusal configs exiting `2` before any model call (SC-008, FR-032)
 
 ---
 
