@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from ticket_dataset.config.defaults import DEFAULT_PROMPT_DOCUMENT
 from ticket_dataset.config.models import GenerationConfig
 from ticket_dataset.model.fake import FakeModelClient
 from ticket_dataset.run.manifest import validate_manifest_file
@@ -57,7 +58,9 @@ async def test_every_record_carries_the_four_provenance_fields(
         record = json.loads(line)
         assert record["record_id"]
         assert record["run_id"] == result.run_id
-        assert record["source_id"].startswith("domain.md@")
+        # Derived from the committed document rather than spelled out, so renaming it is not
+        # a test edit. What matters is that the record names the document it came from.
+        assert record["source_id"].startswith(f"{Path(DEFAULT_PROMPT_DOCUMENT).name}@")
         assert record["schema_version"] == "1.0.0"
 
 

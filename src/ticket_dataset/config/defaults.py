@@ -77,7 +77,7 @@ DEFAULT_TIME_WINDOW_DAYS = 180
 DEFAULT_RESOLUTION_MIN = timedelta(hours=1)  # FR-006a
 DEFAULT_RESOLUTION_MAX = timedelta(days=14)
 
-DEFAULT_PROMPT_DOCUMENT = "prompts/domain.md"
+DEFAULT_PROMPT_DOCUMENT = "prompts/samples/consumer-electronics-support.md"
 DEFAULT_RUBRIC = "prompts/coherence-rubric.md"
 DEFAULT_EXCEPTIONS = "privacy/exceptions.json"
 

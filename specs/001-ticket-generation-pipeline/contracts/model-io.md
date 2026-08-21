@@ -170,7 +170,7 @@ them, and persisting them would multiply corpus size for no downstream use.
 
 | Artifact | Path | Role |
 |----------|------|------|
-| Domain prompt document | `prompts/domain.md` | The support domain, **declaring an enumerable list of subdomains** (FR-008d). Its hash is a run input; `source_id` derives from it (FR-008a). A slot's subdomain is a seeded choice from that list; the model elaborates the situation within it |
+| Domain prompt document | `prompts/samples/consumer-electronics-support.md` | The support domain, **declaring an enumerable list of subdomains** (FR-008d). Its hash is a run input; `source_id` derives from it (FR-008a). A slot's subdomain is a seeded choice from that list; the model elaborates the situation within it |
 | Coherence rubric | `prompts/coherence-rubric.md` | What the judge scores against. Declares `rubric_id`, a version, its **criteria, and each criterion's weight** — weights summing to 1 (FR-009p). Its hash is a run input (FR-009g) |
 
 Both are committed files, not strings in code. Changing either changes the manifest's input hashes, so a

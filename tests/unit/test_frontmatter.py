@@ -78,7 +78,7 @@ def test_reading_a_real_document(tmp_path: Path) -> None:
 
 
 def test_the_committed_documents_parse() -> None:
-    domain, _ = read_document(Path("prompts/domain.md"))
+    domain, _ = read_document(Path("prompts/samples/consumer-electronics-support.md"))
     rubric, _ = read_document(Path("prompts/coherence-rubric.md"))
     assert isinstance(domain["subdomains"], list)
     assert isinstance(rubric["criteria"], dict)

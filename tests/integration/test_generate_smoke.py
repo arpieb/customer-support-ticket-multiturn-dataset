@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from ticket_dataset.config.defaults import DEFAULT_PROMPT_DOCUMENT
 from ticket_dataset.config.models import GenerationConfig
 from ticket_dataset.model.client import ModelRole
 from ticket_dataset.model.fake import FakeModelClient, Script
@@ -94,7 +95,9 @@ async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path
     for record in _records(_output(result)):
         assert record["run_id"] == result.run_id
         assert record["schema_version"] == "1.0.0"
-        assert record["source_id"].startswith("domain.md@")
+        # Derived from the committed document rather than spelled out, so renaming it is not
+        # a test edit. What matters is that the record names the document it came from.
+        assert record["source_id"].startswith(f"{Path(DEFAULT_PROMPT_DOCUMENT).name}@")
         assert record["subdomain"]
         assert record["generation"]["model_id"]
         # The rubric the run actually used, not a pinned version: a deliberate rubric bump is a

@@ -237,7 +237,7 @@ print('resume clean:', len(ids), 'records')
 "
 ```
 
-Now resume with a changed input — edit `prompts/domain.md` and retry: it must refuse with exit `2` rather
+Now resume with a changed input — edit `prompts/samples/consumer-electronics-support.md` and retry: it must refuse with exit `2` rather
 than producing a mixed-provenance corpus (FR-015e). Then check the deliberate exception: commit a code
 change and resume. That must **succeed**, adding a second `segments` entry with the new revision (FR-015f) —
 the corpus is described rather than blocked, the same trade FR-025a makes for a modified working tree.

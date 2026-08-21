@@ -68,6 +68,7 @@ def workspace(tmp_path: Path) -> Path:
     (tmp_path / "run.toml").write_text(
         "record_count = 12\n"
         'output_path = "data/release/corpus.jsonl"\n'
+        'prompt_document = "prompts/domain.md"\n'
         "composition_tolerance_pp = 20.0\n"
         "max_concurrency = 2\n"
         "[composition.category]\nbilling = 1.0\n"
@@ -294,6 +295,7 @@ def test_reproduction_holds_with_a_multi_member_composition(workspace: Path) -> 
     (workspace / "run.toml").write_text(
         "record_count = 12\n"
         'output_path = "data/release/corpus.jsonl"\n'
+        'prompt_document = "prompts/domain.md"\n'
         "composition_tolerance_pp = 30.0\n"
         "max_concurrency = 2\n"
         "[composition.category]\nbilling = 0.5\ntechnical = 0.5\n"
