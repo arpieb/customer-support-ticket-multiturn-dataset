@@ -47,8 +47,23 @@ def _note(message: str) -> None:
 
 @app.command()
 def generate(
-    config: Annotated[Path, typer.Option(help="The single serialized configuration.")],
-    seed: Annotated[int, typer.Option(help="Explicit run seed; there is no default.")],
+    config: Annotated[
+        Path | None, typer.Option(help="The single serialized configuration.")
+    ] = None,
+    seed: Annotated[
+        int | None, typer.Option(help="Explicit run seed; there is no default.")
+    ] = None,
+    from_manifest: Annotated[
+        Path | None,
+        typer.Option(
+            "--from-manifest",
+            help="Reproduce the run a manifest describes, taking its config and its seed.",
+        ),
+    ] = None,
+    allow_drift: Annotated[
+        bool,
+        typer.Option("--allow-drift", help="Proceed with --from-manifest despite changed inputs."),
+    ] = False,
     out: Annotated[Path | None, typer.Option(help="Override the configured output path.")] = None,
     resume: Annotated[
         bool, typer.Option("--resume", help="Continue a checkpointed run for these inputs.")
@@ -67,9 +82,28 @@ def generate(
     from ticket_dataset.run.run import GenerationRun
 
     try:
-        loaded = load_config(config)
-        if out is not None:
-            loaded = loaded.model_copy(update={"output_path": out})
+        if from_manifest is not None:
+            # Silently preferring one source is the error this command exists to prevent, so an
+            # ambiguous invocation refuses instead of guessing which one was meant.
+            if config is not None:
+                raise TicketDatasetError(
+                    "--from-manifest carries its own config; pass one or the other"
+                )
+            if seed is not None:
+                raise TicketDatasetError(
+                    "--from-manifest reproduces a recorded run, so its seed is the recorded one. "
+                    "To reuse the config under a different seed, recover it first: "
+                    "ticket-dataset config-from-manifest <manifest> --out <config>"
+                )
+            loaded, seed = _reproduce_from_manifest(
+                from_manifest, allow_drift=allow_drift, output_override=out
+            )
+        else:
+            if config is None or seed is None:
+                raise TicketDatasetError(
+                    "pass --config with --seed, or --from-manifest to reproduce a recorded run"
+                )
+            loaded = load_config(config, output_override=out)
     except TicketDatasetError as error:
         # Nothing was generated and nothing was spent, which is what exit 2 means.
         _note(str(error))
@@ -157,6 +191,122 @@ def validate_manifest_command(
         _note(f"  - {problem}")
     _note(f"{path}: {len(problems)} problem(s)")
     raise typer.Exit(EXIT_FAILED)
+
+
+def _read_manifest(path: Path) -> dict:
+    """Load a manifest, refusing rather than guessing if it is not one."""
+    if not path.exists():
+        raise TicketDatasetError(f"{path} does not exist")
+    try:
+        payload = json.loads(path.read_text())
+    except json.JSONDecodeError as error:
+        raise TicketDatasetError(f"{path} is not valid JSON: {error}") from error
+    if not isinstance(payload, dict) or "run_id" not in payload:
+        raise TicketDatasetError(f"{path} does not look like a run manifest")
+    return payload
+
+
+def _report_reproduction(report) -> None:
+    """State the conditions around the config, which the config file cannot carry itself."""
+    from ticket_dataset.run.reproduce import InputStatus
+
+    _note(f"run {report.run_id}: seed {report.seed}")
+    for check in report.checks:
+        if check.status is InputStatus.MATCH:
+            _note(f"  {check.label:16} match")
+        elif check.status is InputStatus.MISSING:
+            _note(f"  {check.label:16} MISSING   {check.path} is not on disk")
+        else:
+            _note(
+                f"  {check.label:16} DIFFERS   recorded {check.recorded[:12]}, "
+                f"now {check.actual[:12]} ({check.path})"
+            )
+    if report.commit:
+        dirty = " (uncommitted changes at run time)" if report.dirty else ""
+        _note(f"  code_revision    {report.commit[:12]}{dirty}")
+    for name, value in report.environment_overrides.items():
+        _note(f"  environment      {name}={value} must be set to match")
+
+
+def _reproduce_from_manifest(
+    path: Path, *, allow_drift: bool, output_override: Path | None = None
+) -> tuple[object, int]:
+    """The config and seed a manifest records, once its other inputs have been checked.
+
+    Drift refuses by default. A rerun against a changed prompt produces a different corpus while
+    looking like a faithful reproduction, which is a worse outcome than transcribing the config
+    by hand — at least that fails visibly.
+    """
+    from ticket_dataset.run.reproduce import check_reproduction
+
+    manifest = _read_manifest(path)
+    report = check_reproduction(manifest)
+    _report_reproduction(report)
+
+    if report.drifted and not allow_drift:
+        raise TicketDatasetError(
+            "the working tree no longer matches the inputs this run recorded, so it would not "
+            "reproduce. Restore them (git checkout "
+            f"{(report.commit or '<commit>')[:12]} -- "
+            + " ".join(str(c.path) for c in report.drifted)
+            + ") or pass --allow-drift to generate a different corpus deliberately."
+        )
+    if report.drifted:
+        _note("  proceeding with --allow-drift: this will NOT reproduce the recorded corpus")
+
+    # A config recovered from a manifest gets no free pass: it goes through the same validation
+    # a config read from a file does. Its recorded output_path is normally occupied — the run it
+    # describes published there — so --out is how a reproduction is given somewhere to write.
+    from ticket_dataset.config.loader import validate_config
+
+    return (
+        validate_config(manifest["config"], output_override=output_override),
+        report.seed,
+    )
+
+
+@app.command("config-from-manifest")
+def config_from_manifest_command(
+    path: Annotated[Path, typer.Argument(help="The manifest to recover a config from.")],
+    out: Annotated[
+        Path | None, typer.Option(help="Write the config here instead of to stdout.")
+    ] = None,
+) -> None:
+    """Recover the configuration a run used, from the manifest it wrote (FR-040).
+
+    The manifest stores the resolved config, so what comes back is what the run actually ran
+    with rather than what its author typed. The config alone will not reproduce the run, so the
+    conditions around it — seed, input digests, code revision, routing environment — are
+    reported alongside it.
+    """
+    from ticket_dataset.run.reproduce import (
+        check_reproduction,
+        config_from_manifest,
+        render_config_toml,
+    )
+
+    try:
+        manifest = _read_manifest(path)
+        text = render_config_toml(config_from_manifest(manifest))
+        report = check_reproduction(manifest)
+    except TicketDatasetError as error:
+        _note(str(error))
+        raise typer.Exit(EXIT_REFUSED) from error
+
+    if out is None:
+        print(text, end="")
+    else:
+        out.write_text(text)
+        _note(f"wrote {out}")
+
+    _report_reproduction(report)
+    if report.drifted:
+        _note("")
+        _note("This run cannot be reproduced from the working tree as it stands.")
+        raise typer.Exit(EXIT_FAILED)
+    if out is not None:
+        _note("")
+        _note(f"  ticket-dataset generate --config {out} --seed {report.seed}")
 
 
 privacy_app = typer.Typer(help="Inspect and manage the privacy gate.")

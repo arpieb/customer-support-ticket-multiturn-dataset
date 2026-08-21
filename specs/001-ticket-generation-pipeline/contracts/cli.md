@@ -15,9 +15,11 @@ Produce a corpus. The primary command.
 
 | Option | Type | Default | Notes |
 |--------|------|---------|-------|
-| `--config PATH` | path | — | **Required.** The single serialized configuration (FR-008) |
-| `--seed INT` | int | — | **Required.** Explicit; there is no implicit or time-derived seed (Principle II) |
-| `--out PATH` | path | from config | Overrides `output_path`. Must be under `data/release/` and must not exist. There is deliberately **no** overwrite option — the run refuses and names the path, and removing a release artifact stays a manual act (FR-013, FR-014) |
+| `--config PATH` | path | — | The single serialized configuration (FR-008). Required unless `--from-manifest` is given |
+| `--seed INT` | int | — | Explicit; there is no implicit or time-derived seed (Principle II). Required with `--config`; refused with `--from-manifest`, which carries the recorded seed |
+| `--from-manifest PATH` | path | — | Reproduce the run a manifest describes, taking both its configuration and its seed (FR-040, FR-041). Naming it alongside `--config` or `--seed` refuses rather than choosing between them |
+| `--allow-drift` | flag | off | Proceed with `--from-manifest` even though a recorded input has changed. The run is announced as not reproducing the recorded corpus (FR-041) |
+| `--out PATH` | path | from config | Overrides `output_path`, and is applied **before** validation, so the occupied-path check tests the destination actually being written rather than the one the config names. Must be under `data/release/` and must not exist. There is deliberately **no** overwrite option — the run refuses and names the path, and removing a release artifact stays a manual act (FR-013, FR-014) |
 | `--report PATH` | path | see below | Overrides the report location. By default the JSON report is `<run_id>.report.json` beside the artifact on success, and `data/interim/<run_id>/report.json` otherwise — locatable from a run identifier either way (FR-036a) |
 | `--resume` | flag | off | Resume a checkpointed run. The candidate is found by matching input fingerprints; several matches refuse and list them (FR-015h) |
 | `--run-id ID` | str | — | Names the run to resume when fingerprint matching is ambiguous (FR-015h) |
@@ -36,7 +38,7 @@ the machine-readable report and nothing else, so a piped invocation is never cor
 |------|---------|
 | `0` | Corpus written to the release path; every threshold satisfied |
 | `1` | Run failed a threshold (privacy discard rate, coherence discard rate, composition tolerance — each computed over `records_generated` per FR-026a) or stopped short. Manifest and report are still written; the artifact is **not** moved into `data/release/` |
-| `2` | Refused before generating: invalid config, unsatisfiable composition, a tolerance unachievable at the requested corpus size, existing output path, a floor type that failed its canary probe, or a resume whose inputs no longer match, an ambiguous or unreadable checkpoint, or a destination another run has already claimed (FR-011, FR-018, FR-018a, FR-031b, FR-032, FR-015e, FR-015g, FR-015h, FR-014a) |
+| `2` | Refused before generating: invalid config, unsatisfiable composition, a tolerance unachievable at the requested corpus size, existing output path, a floor type that failed its canary probe, or a resume whose inputs no longer match, an ambiguous or unreadable checkpoint, or a destination another run has already claimed, or a `--from-manifest` reproduction whose recorded inputs no longer match the working tree (FR-011, FR-018, FR-018a, FR-031b, FR-032, FR-015e, FR-015g, FR-015h, FR-014a, FR-041) |
 | `3` | **Stopped**: interrupted, a declared budget exhausted (FR-012f), or a discard-rate threshold breached mid-run (FR-037). Progress checkpointed and resumable; completed work is never lost |
 
 The four statuses map onto the four run outcomes FR-036b requires — completed, refused, failed, stopped —
@@ -44,6 +46,34 @@ because a binary cannot carry the distinction. `2` means nothing was generated a
 means a corpus exists in staging and its accounting explains why it did not qualify; `3` means work is
 preserved and resumable. The report's `outcome` field carries the same value for automation that should not
 be reading exit codes.
+
+---
+
+## `ticket-dataset config-from-manifest PATH`
+
+Recover the configuration a run used, from the manifest it wrote (FR-040).
+
+| Option | Type | Default | Notes |
+|--------|------|---------|-------|
+| `--out PATH` | path | stdout | Write the recovered configuration here instead of to stdout |
+
+What comes back is the **resolved** configuration — every default already materialised — so an unstated
+default cannot change the recovered run's meaning. The rendered file is parsed back and compared against
+the configuration it came from before anything is written; if it would load as a different run, nothing is
+written at all. A subtly wrong configuration is worse than none, because it looks like it worked.
+
+The configuration alone does not reproduce a run, so the conditions around it are reported on stderr: the
+seed, each recorded input digest against the file on disk now, the code revision and whether it was dirty,
+and any routing environment variable that must be set to match (FR-041). When every input still matches,
+the exact `generate` invocation is printed.
+
+**Exit statuses**
+
+| Code | Meaning |
+|------|---------|
+| `0` | Configuration recovered; every recorded input still matches the working tree |
+| `1` | Configuration recovered, but a recorded input has changed or is missing — the run will not reproduce as things stand. The file is still written, since deriving a new run from it is legitimate |
+| `2` | Refused: the path does not exist, is not valid JSON, is not a manifest, carries no configuration, or would not round-trip |
 
 ---
 

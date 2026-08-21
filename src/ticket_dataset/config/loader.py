@@ -79,9 +79,20 @@ def semantic_problems(config: GenerationConfig, *, require_absent_output: bool =
 
 
 def validate_config(
-    payload: dict[str, Any], *, require_absent_output: bool = True
+    payload: dict[str, Any],
+    *,
+    require_absent_output: bool = True,
+    output_override: Path | None = None,
 ) -> GenerationConfig:
-    """Validate a parsed configuration, raising ``ConfigError`` with *every* problem."""
+    """Validate a parsed configuration, raising ``ConfigError`` with *every* problem.
+
+    ``output_override`` is applied before validation rather than after. Checking the configured
+    path and then writing somewhere else would refuse runs over a destination they never touch —
+    which is what a recovered config always looks like, since the run it describes already
+    published to that path (FR-014, FR-040).
+    """
+    if output_override is not None:
+        payload = {**payload, "output_path": str(output_override)}
     config, problems = _shape_problems(payload)
     if config is None:
         raise ConfigError(problems)
@@ -91,7 +102,9 @@ def validate_config(
     return config
 
 
-def load_config(path: Path, *, require_absent_output: bool = True) -> GenerationConfig:
+def load_config(
+    path: Path, *, require_absent_output: bool = True, output_override: Path | None = None
+) -> GenerationConfig:
     """Read and validate a TOML configuration file (FR-008, FR-011)."""
     path = Path(path)
     if not path.exists():
@@ -100,4 +113,8 @@ def load_config(path: Path, *, require_absent_output: bool = True) -> Generation
         payload = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as error:
         raise ConfigError([f"config: {path} is not valid TOML: {error}"]) from error
-    return validate_config(payload, require_absent_output=require_absent_output)
+    return validate_config(
+        payload,
+        require_absent_output=require_absent_output,
+        output_override=output_override,
+    )

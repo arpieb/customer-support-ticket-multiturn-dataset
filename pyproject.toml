@@ -9,6 +9,7 @@ dependencies = [
     "datafog>=4.8,<5",
     "typer>=0.12",
     "litellm>=1.97.0",
+    "tomli-w>=1.0,<2",
 ]
 
 [project.scripts]

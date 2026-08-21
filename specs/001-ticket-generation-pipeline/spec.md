@@ -643,6 +643,18 @@ stated tolerance.
   count exists to surface. Comparison against previously generated corpora is out of scope: it would require
   a persistent cross-run registry this feature does not otherwise need, and FR-034's purpose is a diversity
   signal for the run in hand.
+- **FR-040**: The configuration a run used MUST be recoverable from the manifest it wrote, as a file the
+  system accepts as input. Recovery returns the *resolved* configuration the run actually executed with,
+  not the abbreviated one its author may have typed, so an unstated default cannot change the recovered
+  run's meaning. The recovered file MUST be verified to parse back to the configuration it came from
+  before it is written; a file that would load as a different run MUST NOT be produced.
+- **FR-041**: Recovery MUST also report the run conditions the configuration file cannot itself carry —
+  the seed, the digest of every recorded input, the code revision, and any routing environment — and MUST
+  state whether the working tree still matches them. A run whose recorded inputs have changed MUST NOT be
+  reproduced silently: the system either refuses, or proceeds only on an explicit instruction and states
+  that the result will not reproduce the recorded corpus. Rationale: a configuration that travels alone
+  invites a rerun against a changed prompt to be mistaken for a faithful reproduction, which is a worse
+  failure than transcribing the configuration by hand, because it does not announce itself.
 
 ### Key Entities
 
