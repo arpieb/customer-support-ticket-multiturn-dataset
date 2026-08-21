@@ -364,7 +364,11 @@ stated tolerance.
   selection (FR-008d), and its ticket timestamps (FR-006a) — MUST be derived deterministically from the run seed and the record's position,
   assigned before the record is dispatched. The scenario the model elaborates within an assigned subdomain
   is model output, not a seeded choice, and is reproducible only in the structural sense FR-010 states. They MUST NOT be drawn from a shared sequential stream, so that output does not
-  depend on the order in which concurrent work completes.
+  depend on the order in which concurrent work completes. Nor may any derivation depend on **interpreter
+  or process state** — a value that varies between two invocations of the same code is as much hidden state
+  as an unrecorded environment setting, and defeats the seed it appears to honour. A seeded choice MUST
+  also not depend on another seeded choice unless the requirements say it does: coupling them means a
+  change to one dimension silently moves another.
 - **FR-012c**: Records MUST be written in **ascending `record_index`**, independent of completion order, so
   that two runs with the same seed and configuration produce corpora comparable record by record. A record's
   serialization MUST also be deterministic — identical record content yields identical bytes — so that

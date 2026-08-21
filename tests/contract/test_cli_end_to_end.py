@@ -281,3 +281,48 @@ def test_out_is_honoured_when_the_configured_path_is_already_taken(workspace: Pa
     )
     assert result.returncode == 0, result.stderr
     assert (workspace / "data" / "release" / "elsewhere.jsonl").exists()
+
+
+def test_reproduction_holds_with_a_multi_member_composition(workspace: Path) -> None:
+    """The gap that let a determinism defect survive a green suite.
+
+    Every other config here declares one member per dimension, so the composition pools are
+    uniform and shuffling them cannot change anything. A pool shuffle keyed to the interpreter
+    rather than the seed was invisible under those configs, and visible immediately under this
+    one.
+    """
+    (workspace / "run.toml").write_text(
+        "record_count = 12\n"
+        'output_path = "data/release/corpus.jsonl"\n'
+        "composition_tolerance_pp = 30.0\n"
+        "max_concurrency = 2\n"
+        "[composition.category]\nbilling = 0.5\ntechnical = 0.5\n"
+        "[composition.priority]\nnormal = 1.0\n"
+        "[composition.channel]\nemail = 0.5\nchat = 0.5\n"
+        "[composition.resolution_status]\nresolved = 0.75\nescalated = 0.25\n"
+    )
+    assert _run("generate", "--config", "run.toml", "--seed", "42", cwd=workspace).returncode == 0
+    corpus = workspace / "data" / "release" / "corpus.jsonl"
+    original = [json.loads(line) for line in corpus.read_text().splitlines()]
+    assert len({r["metadata"]["category"] for r in original}) == 2, "pool is not actually mixed"
+
+    result = _run(
+        "generate",
+        "--from-manifest",
+        str(_manifest_of(workspace).relative_to(workspace)),
+        "--out",
+        "data/release/again.jsonl",
+        cwd=workspace,
+    )
+    assert result.returncode == 0, result.stderr
+    again = [
+        json.loads(line)
+        for line in (workspace / "data" / "release" / "again.jsonl").read_text().splitlines()
+    ]
+
+    # Metadata assignment and content alike, since a reproduction is only worth the name if the
+    # composition lands on the same positions.
+    for a, b in zip(original, again, strict=True):
+        assert a["metadata"] == b["metadata"]
+        assert a["turns"] == b["turns"]
+        assert a["subdomain"] == b["subdomain"]

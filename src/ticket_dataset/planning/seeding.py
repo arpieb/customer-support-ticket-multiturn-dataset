@@ -16,6 +16,23 @@ def slot_key(seed: int, position: int, attempt: int) -> int:
     return int.from_bytes(digest, "big")
 
 
+def stream_key(seed: int, name: str) -> int:
+    """The 64-bit key seeding a named run-level stream."""
+    digest = blake2b(f"{seed}/stream/{name}".encode(), digest_size=8).digest()
+    return int.from_bytes(digest, "big")
+
+
+def stream_random(seed: int, name: str) -> random.Random:
+    """An independent generator for one named run-level concern, rather than one slot.
+
+    Named, because the alternative is deriving a stream from ``hash(name)`` — and Python
+    randomises ``str`` hashing per process, so that produces a different stream on every
+    invocation. Deriving it from the name's bytes through the same digest used everywhere else
+    makes the stream a function of the seed alone, which is what Principle II requires.
+    """
+    return random.Random(stream_key(seed, name))
+
+
 def slot_random(seed: int, position: int, attempt: int = 0) -> random.Random:
     """An independent generator for one slot attempt.
 
