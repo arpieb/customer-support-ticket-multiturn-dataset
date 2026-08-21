@@ -32,7 +32,7 @@ from ticket_dataset.run.enums import DiscardReason
 
 @pytest.fixture(scope="module")
 def document():
-    return load_domain_document(Path("prompts/samples/domain.md"))
+    return load_domain_document(Path("prompts/samples/consumer-electronics-support.md"))
 
 
 @pytest.fixture(scope="module")

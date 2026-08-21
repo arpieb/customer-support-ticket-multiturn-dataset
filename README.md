@@ -161,8 +161,11 @@ there — they tend to carry a host address or a model only you can reach, which
 default. Nothing is lost by keeping them out of the repository: every manifest embeds the full
 resolved config a run used, so a published corpus stays reproducible from its own artifacts.
 
-Prompts are split the same way but tracked differently. `prompts/samples/domain.md` is the example
-domain; point `prompt_document` at your own file to generate a different one. **Your domain document
+Prompts are split the same way but tracked differently.
+`prompts/samples/consumer-electronics-support.md` is the example domain, named for the domain it
+describes rather than generically, so a record's `source_id` says which domain produced it —
+`consumer-electronics-support.md@8d67eaf56b0a`. Point `prompt_document` at your own file to
+generate a different one. **Your domain document
 must be committed** — unlike a config, the manifest records only its hash, not its text, so a run
 whose prompt is not in version control cannot be reproduced by anyone, including you.
 
@@ -217,7 +220,7 @@ so the recorded digests are checked against the working tree first, and a mismat
 
 ```
 run 1e6fcf13-...: seed 42
-  prompt_document  DIFFERS   recorded e876f634be43, now 8d67eaf56b0a (prompts/samples/domain.md)
+  prompt_document  DIFFERS   recorded e876f634be43, now 8d67eaf56b0a (prompts/samples/consumer-electronics-support.md)
   rubric           match
   code_revision    06b01ff283ee (uncommitted changes at run time)
 ```

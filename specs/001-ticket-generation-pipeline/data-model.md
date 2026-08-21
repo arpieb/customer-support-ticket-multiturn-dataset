@@ -121,7 +121,7 @@ manifest and hashed into the checkpoint's input fingerprint set.
 |-------|------|---------|-------|
 | `record_count` | `int` | — | ≥ 1. Zero is a configuration error, not an empty corpus (spec Edge Cases) |
 | `output_path` | `path` | — | Must be under `data/release/`; must not already exist (FR-013, FR-014) |
-| `prompt_document` | `path` | `prompts/samples/domain.md` | Must exist; hashed as a run input (FR-008a) |
+| `prompt_document` | `path` | `prompts/samples/consumer-electronics-support.md` | Must exist; hashed as a run input (FR-008a) |
 | `rubric` | `path` | `prompts/coherence-rubric.md` | Must exist; hashed as a run input (FR-009g) |
 | `composition` | `Composition \| None` | `None` | When absent, the documented default distribution applies (FR-033) |
 | `turns.min` / `turns.max` | `int` | `4` / `12` | `2 ≤ min ≤ max` (FR-009e); each conversation's length is drawn **uniformly** from the range with the slot's own generator (FR-009d, FR-033) |
