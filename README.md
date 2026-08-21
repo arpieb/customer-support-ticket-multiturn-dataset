@@ -177,6 +177,45 @@ checkpoint — continuing under changed inputs would produce a corpus the manife
 describe. A changed **code revision** does not refuse; it is recorded as an additional manifest
 segment instead.
 
+## Reproducing a published run
+
+A manifest records everything its run consumed, so nothing needs transcribing by hand. To repeat a
+run exactly:
+
+```bash
+uv run ticket-dataset generate \
+  --from-manifest data/release/<run_id>.manifest.json \
+  --out data/release/repeat.jsonl
+```
+
+The configuration and the seed both come from the manifest, so neither is passed. `--out` is,
+because the recorded output path is where the original corpus already sits.
+
+The configuration is only part of what a run consumed. The prompt document, the rubric, the code
+revision and any routing environment matter just as much, and none of them live in a config file —
+so the recorded digests are checked against the working tree first, and a mismatch refuses:
+
+```
+run 1e6fcf13-...: seed 42
+  prompt_document  DIFFERS   recorded e876f634be43, now 8d67eaf56b0a (prompts/domain.md)
+  rubric           match
+  code_revision    06b01ff283ee (uncommitted changes at run time)
+```
+
+Restore the inputs it names, or pass `--allow-drift` to generate deliberately against the current
+ones — which is a new corpus, and says so.
+
+To get the configuration as a file instead — to read it, or to derive a new run from it:
+
+```bash
+uv run ticket-dataset config-from-manifest \
+  data/release/<run_id>.manifest.json --out configs/rerun.toml
+```
+
+What comes back is the *resolved* configuration, every default written out, so no unstated default
+can shift underneath it. It is parsed back and compared before being written; if it would load as a
+different run, nothing is written at all.
+
 ## Privacy
 
 The scan runs on every structurally valid response, before it is judged, and blocks any record
