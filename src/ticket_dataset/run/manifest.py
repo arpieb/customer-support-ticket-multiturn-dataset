@@ -50,6 +50,14 @@ class ModelRecord:
     Provider-neutral: ``model_id`` is a litellm model string and ``extra`` carries whatever
     provider-specific settings shaped the output. Both are recorded because anything that shapes
     output is provenance, whichever vendor's vocabulary it happens to be written in.
+
+    ``connection_keys`` names the settings used to reach the provider **without their values**.
+    An alternate endpoint has to be visible as provenance, or it is the hidden state FR-008
+    prohibits — but its address is deployment infrastructure that auditing a corpus never needs,
+    and publishing it in a manifest that ships with a release would disclose it to everyone who
+    reads the dataset. Naming the setting satisfies the first without the second (FR-008c,
+    FR-042). A digest was rejected: an internal hostname or address has too little entropy to
+    survive being brute-forced, so hashing it would assure without protecting.
     """
 
     model_id: str
@@ -57,6 +65,7 @@ class ModelRecord:
     sampling_seed: int | None
     fallback_models: list[str]
     extra: dict
+    connection_keys: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)

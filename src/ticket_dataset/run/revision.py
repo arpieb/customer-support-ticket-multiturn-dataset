@@ -35,6 +35,15 @@ ROUTING_VARIABLES = (
 )
 
 #: Never recorded, anywhere, under any circumstances (FR-008).
+#: Routing variables whose *value* is an address rather than a selection. Recorded as having
+#: been set, not as what they were set to: an endpoint must be visible as provenance (FR-008c),
+#: but its address is deployment infrastructure and a manifest ships with the release (FR-042).
+ENDPOINT_VARIABLES = frozenset({"ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN_FILE"})
+
+#: Stands in for an endpoint's value. Says an override was in effect without saying where to.
+ENDPOINT_PLACEHOLDER = "<set>"
+
+
 CREDENTIAL_VARIABLES = frozenset(
     {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"}
 )
@@ -95,14 +104,17 @@ def environment_overrides(environ: dict[str, str] | None = None) -> dict[str, st
     """Routing-capable environment settings, recorded as provenance (FR-008c).
 
     Credentials are excluded by name rather than by redaction: a value that is never read cannot
-    be written by accident.
+    be written by accident. Routing variables *are* read, because an unrecorded setting that
+    changes which model answers is the hidden state FR-008 prohibits — but those naming an
+    endpoint are recorded as set rather than by value, since the address is deployment detail a
+    published manifest should not carry (FR-042).
     """
     source = os.environ if environ is None else environ
     overrides: dict[str, str] = {}
     for name in ROUTING_VARIABLES:
         value = source.get(name)
         if value:
-            overrides[name] = value
+            overrides[name] = ENDPOINT_PLACEHOLDER if name in ENDPOINT_VARIABLES else value
     for name in CREDENTIAL_VARIABLES:
         assert name not in overrides, "a credential must never be recorded (FR-008)"
     return overrides

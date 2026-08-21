@@ -98,8 +98,16 @@ def test_hash_inputs_labels_every_present_input(tmp_path: Path) -> None:
 def test_a_routing_override_is_recorded() -> None:
     # An unrecorded setting that alters output is exactly the hidden state FR-008 prohibits;
     # recording it converts it into provenance.
+    overrides = environment_overrides({"AWS_REGION": "eu-west-1"})
+    assert overrides == {"AWS_REGION": "eu-west-1"}
+
+
+def test_an_endpoint_is_recorded_as_set_rather_than_by_address() -> None:
+    # The fact of the override is the provenance; the address is deployment infrastructure, and
+    # a manifest ships with the release (FR-042).
     overrides = environment_overrides({"ANTHROPIC_BASE_URL": "https://gateway.internal"})
-    assert overrides == {"ANTHROPIC_BASE_URL": "https://gateway.internal"}
+    assert overrides == {"ANTHROPIC_BASE_URL": "<set>"}
+    assert "gateway.internal" not in str(overrides)
 
 
 def test_an_empty_environment_records_nothing() -> None:

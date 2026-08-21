@@ -21,7 +21,7 @@ from typing import Any
 import tomli_w
 from pydantic import ValidationError
 
-from ticket_dataset.config.models import GenerationConfig
+from ticket_dataset.config.models import GenerationConfig, _is_connection_setting
 from ticket_dataset.errors import TicketDatasetError
 
 
@@ -61,6 +61,10 @@ class ReproductionReport:
     commit: str | None
     dirty: bool
     environment_overrides: dict[str, str]
+    #: role → the connection settings that run used, by name. Their values were deliberately
+    #: never recorded (FR-042), so reproducing means supplying them; naming them is what makes
+    #: that actionable rather than a silent difference.
+    connection_keys: dict[str, list[str]]
 
     @property
     def drifted(self) -> tuple[InputCheck, ...]:
@@ -86,7 +90,35 @@ def config_from_manifest(manifest: dict[str, Any]) -> GenerationConfig:
     payload = manifest.get("config")
     if not isinstance(payload, dict):
         raise TicketDatasetError("manifest has no 'config' object to recover")
-    return GenerationConfig.model_validate(payload)
+    return GenerationConfig.model_validate(_relocate_connection_settings(payload))
+
+
+def _relocate_connection_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    """Move connection settings out of ``extra`` in configs recorded before they were separated.
+
+    Manifests written before FR-042 recorded an endpoint inside ``extra``, which the config model
+    now refuses. Refusing to read them would make every already-published run unreproducible to
+    punish an exposure that has already happened in a file this cannot reach. Relocating them
+    keeps recovery working and means the config written back out no longer carries the setting
+    where it would be published again.
+    """
+    models = payload.get("models")
+    if not isinstance(models, dict):
+        return payload
+
+    migrated = {**payload, "models": {**models}}
+    for role, spec in models.items():
+        if not isinstance(spec, dict) or not isinstance(spec.get("extra"), dict):
+            continue
+        moved = {k: v for k, v in spec["extra"].items() if _is_connection_setting(k)}
+        if not moved:
+            continue
+        migrated["models"][role] = {
+            **spec,
+            "extra": {k: v for k, v in spec["extra"].items() if k not in moved},
+            "connection": {**spec.get("connection", {}), **moved},
+        }
+    return migrated
 
 
 def _digest(path: Path) -> str | None:
@@ -112,6 +144,11 @@ def check_reproduction(manifest: dict[str, Any], *, root: Path = Path()) -> Repr
         commit=revision.get("commit"),
         dirty=bool(revision.get("dirty")),
         environment_overrides=dict(manifest.get("environment_overrides") or {}),
+        connection_keys={
+            role: sorted(record.get("connection_keys") or [])
+            for role, record in (manifest.get("models") or {}).items()
+            if record.get("connection_keys")
+        },
     )
 
 

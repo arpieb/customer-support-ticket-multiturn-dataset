@@ -86,9 +86,11 @@ async def test_credentials_never_appear_in_the_manifest(
     text = result.manifest_path.read_text()
 
     assert "sk-should-never-be-recorded" not in text
-    # But a routing override is recorded, because it can change output (FR-008c).
+    # A routing override is still recorded, because it can change output (FR-008c) — but as
+    # having been set, not as where it pointed. A manifest ships with the release (FR-042).
     manifest = json.loads(text)
-    assert manifest["environment_overrides"]["ANTHROPIC_BASE_URL"] == "https://gateway.internal"
+    assert manifest["environment_overrides"]["ANTHROPIC_BASE_URL"] == "<set>"
+    assert "gateway.internal" not in text
 
 
 async def test_the_report_is_findable_from_the_run_identifier(
@@ -97,3 +99,38 @@ async def test_the_report_is_findable_from_the_run_identifier(
     result = await _run(tmp_path)
     assert result.report_path.name == f"{result.run_id}.report.json"
     assert result.report_path.parent == result.artifact_path.parent
+
+
+async def test_connection_settings_reach_no_artifact_a_release_ships_with(
+    tmp_path: Path, staging_root: Path
+) -> None:
+    """The guarantee FR-042 makes, stated end to end.
+
+    A manifest travels with a published dataset. Anything in it is disclosed to everyone who
+    reads the corpus, so an endpoint address or a key must not be there at all — not redacted
+    late, but never written.
+    """
+    config = _config(tmp_path)
+    secrets = {"api_base": "http://10.11.12.13:9999", "api_key": "sk-never-published"}
+    config = config.model_copy(
+        update={
+            "models": config.models.model_copy(
+                update={
+                    "generator": config.models.generator.model_copy(
+                        update={"connection": dict(secrets)}
+                    ),
+                    "judge": config.models.judge.model_copy(update={"connection": dict(secrets)}),
+                }
+            )
+        }
+    )
+    result = await GenerationRun(config=config, seed=3, model_client=FakeModelClient()).execute()
+
+    for artifact in (result.manifest_path, result.report_path, result.artifact_path):
+        text = artifact.read_text()
+        for value in secrets.values():
+            assert value not in text, f"{value} leaked into {artifact.name}"
+
+    # Provenance is still served: the manifest says which settings were supplied, by name.
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["models"]["generator"]["connection_keys"] == ["api_base", "api_key"]

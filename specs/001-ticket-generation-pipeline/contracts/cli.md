@@ -64,8 +64,12 @@ written at all. A subtly wrong configuration is worse than none, because it look
 
 The configuration alone does not reproduce a run, so the conditions around it are reported on stderr: the
 seed, each recorded input digest against the file on disk now, the code revision and whether it was dirty,
-and any routing environment variable that must be set to match (FR-041). When every input still matches,
-the exact `generate` invocation is printed.
+any routing environment variable that must be set to match, and the connection settings the run used, by
+name (FR-041, FR-042). When every input still matches, the exact `generate` invocation is printed.
+
+Connection settings are named but never recovered — their values were never recorded, so reproducing a run
+means supplying them. That is the intended cost of not publishing an endpoint address in an artifact that
+ships with the dataset.
 
 **Exit statuses**
 

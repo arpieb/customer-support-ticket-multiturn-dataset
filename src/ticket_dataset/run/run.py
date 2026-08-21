@@ -681,6 +681,8 @@ class GenerationRun:
                 sampling_seed=spec.sampling_seed,
                 fallback_models=list(spec.fallback_models),
                 extra=dict(spec.extra),
+                # Names only. The values are how to reach the provider, never what it produced.
+                connection_keys=sorted(spec.connection),
             )
 
         return RunManifest(

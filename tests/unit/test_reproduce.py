@@ -121,6 +121,32 @@ def test_a_serialiser_that_lost_information_would_refuse_to_write(
         render_config_toml(_config(tmp_path))
 
 
+def test_a_manifest_predating_the_connection_split_is_still_recoverable(tmp_path: Path) -> None:
+    # Manifests written before FR-042 put the endpoint in extra, which the model now refuses.
+    # Refusing to read them would make every already-published run unreproducible.
+    config = _config(tmp_path)
+    manifest = _manifest(config)
+    manifest["config"]["models"]["generator"]["extra"] = {
+        "api_base": "http://10.0.0.5:11434",
+        "reasoning_effort": "high",
+    }
+
+    recovered = config_from_manifest(manifest)
+    generator = recovered.models.generator
+    assert generator.connection == {"api_base": "http://10.0.0.5:11434"}
+    assert generator.extra == {"reasoning_effort": "high"}  # output-shaping settings stay
+
+
+def test_a_recovered_legacy_config_no_longer_carries_the_endpoint(tmp_path: Path) -> None:
+    # The point of relocating: the config written back out cannot leak it a second time.
+    config = _config(tmp_path)
+    manifest = _manifest(config)
+    manifest["config"]["models"]["judge"]["extra"] = {"api_key": "sk-SECRET"}
+
+    text = render_config_toml(config_from_manifest(manifest))
+    assert "sk-SECRET" not in text
+
+
 def test_the_committed_release_manifest_round_trips() -> None:
     # A real manifest from a real run, not a fixture shaped to pass.
     path = Path("data/release/1e6fcf13-ebc7-4fd7-9d9d-b1325b3492de.manifest.json")
@@ -128,5 +154,11 @@ def test_the_committed_release_manifest_round_trips() -> None:
         pytest.skip("no local release manifest")
     manifest = json.loads(path.read_text())
     config = config_from_manifest(manifest)
-    assert config.model_dump(mode="json") == manifest["config"]
-    assert GenerationConfig.model_validate(tomllib.loads(render_config_toml(config))) == config
+    text = render_config_toml(config)
+
+    # Everything the file carries reads back identically. Connection settings are the deliberate
+    # exception: they are never written, so the operator supplies them and nothing is published.
+    assert GenerationConfig.model_validate(tomllib.loads(text)).model_dump(
+        mode="json"
+    ) == config.model_dump(mode="json")
+    assert "100.83.200.67" not in text
