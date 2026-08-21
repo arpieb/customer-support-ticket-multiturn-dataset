@@ -112,3 +112,85 @@ def test_subdomain_assignment_is_reproducible() -> None:
 def test_an_empty_subdomain_list_is_refused() -> None:
     with pytest.raises(ValueError, match="no subdomains declared"):
         assign_subdomains(plan_slots(_config(), 42), [], 42)
+
+
+# --- determinism across processes, not merely within one -------------------------------------
+
+
+_PROBE = """
+from pathlib import Path
+from ticket_dataset.config.models import GenerationConfig
+from ticket_dataset.planning.slots import plan_slots
+config = GenerationConfig(
+    record_count=40,
+    output_path=Path("data/release/x.jsonl"),
+    composition={
+        "category": {"billing": 0.5, "technical": 0.5},
+        "priority": {"normal": 1.0},
+        "channel": {"email": 0.5, "chat": 0.5},
+        "resolution_status": {"resolved": 0.75, "escalated": 0.25},
+    },
+    composition_tolerance_pp=10.0,
+)
+print("|".join(
+    f"{s.category},{s.channel},{s.resolution_status},{s.turn_count}"
+    for s in plan_slots(config, seed=42)
+))
+"""
+
+
+def _plan_in_subprocess(hash_seed: str) -> str:
+    import os
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", _PROBE],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "PYTHONHASHSEED": hash_seed},
+    )
+    return result.stdout.strip()
+
+
+def test_planning_is_identical_across_processes() -> None:
+    """The regression this file could not previously catch.
+
+    Composition pools were shuffled with a generator keyed by ``hash(dimension_name)``, and
+    Python randomises string hashing per process. Two runs of the same config therefore assigned
+    different composition to the same positions — a Principle II violation that no in-process
+    test could see, because ``hash()`` is stable *within* an interpreter. Distinct
+    ``PYTHONHASHSEED`` values are what make the failure observable.
+
+    It also needs a multi-member dimension: shuffling a pool whose entries are all identical is
+    a no-op, which is why the end-to-end suite's single-member configs never surfaced it.
+    """
+    plans = {_plan_in_subprocess(seed) for seed in ("0", "1", "12345")}
+    assert len(plans) == 1, "slot planning depends on the interpreter's hash seed"
+
+
+def test_turn_count_does_not_move_with_the_resolution_split() -> None:
+    """Turn count must not depend on the composition assignment.
+
+    ``resolved_at`` is drawn only for resolved tickets, so a turn count drawn afterwards rode on
+    whether the slot happened to be resolved — and changing the resolved/escalated ratio moved
+    every turn count with it, for no reason a reader of the config could anticipate.
+    """
+    mostly_resolved = _plan(
+        composition={
+            "category": {"billing": 1.0},
+            "priority": {"normal": 1.0},
+            "channel": {"email": 1.0},
+            "resolution_status": {"resolved": 0.9, "escalated": 0.1},
+        }
+    )
+    mostly_escalated = _plan(
+        composition={
+            "category": {"billing": 1.0},
+            "priority": {"normal": 1.0},
+            "channel": {"email": 1.0},
+            "resolution_status": {"resolved": 0.1, "escalated": 0.9},
+        }
+    )
+    assert [s.turn_count for s in mostly_resolved] == [s.turn_count for s in mostly_escalated]

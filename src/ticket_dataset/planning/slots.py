@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from ticket_dataset.config.models import GenerationConfig
 from ticket_dataset.planning.apportion import apportion
-from ticket_dataset.planning.seeding import slot_random
+from ticket_dataset.planning.seeding import slot_random, stream_random
 from ticket_dataset.schema.enums import COMPOSITION_DIMENSIONS, ResolutionStatus
 
 
@@ -54,8 +54,11 @@ def _assignment_pools(config: GenerationConfig, seed: int) -> dict[str, list[str
         pool: list[str] = []
         for member, count in sorted(counts[dimension].items()):
             pool.extend([member] * count)
-        # A dimension-specific derivation so the four are shuffled independently.
-        slot_random(seed, -1, abs(hash(dimension)) % 1_000).shuffle(pool)
+        # A dimension-specific derivation so the four are shuffled independently. Keyed by the
+        # dimension's *name* rather than by ``hash(name)``: Python randomises string hashing per
+        # process, so that keyed the shuffle to the interpreter rather than to the seed, and two
+        # runs of the same config assigned different composition to the same positions.
+        stream_random(seed, f"pool/{dimension}").shuffle(pool)
         pools[dimension] = pool
     return pools
 
@@ -74,6 +77,12 @@ def plan_slots(config: GenerationConfig, seed: int) -> list[Slot]:
         rng = slot_random(seed, position)
         resolution_status = pools["resolution_status"][position]
         created_at = window_start + timedelta(seconds=rng.randrange(window_seconds))
+        # Drawn before the conditional below, and deliberately so. ``resolved_at`` consumes from
+        # this generator only for resolved tickets, so drawing the turn count afterwards made it
+        # depend on the composition assignment — a change to the resolved/escalated split moved
+        # every turn count with it. Unconditional draws come first so each stays a function of
+        # (seed, position) alone.
+        turn_count = rng.randint(config.turns.min, config.turns.max)
         # Present when and only when the ticket was resolved (FR-006b).
         resolved_at = (
             created_at + timedelta(seconds=rng.randint(resolution_min, resolution_max))
@@ -89,7 +98,7 @@ def plan_slots(config: GenerationConfig, seed: int) -> list[Slot]:
                 resolution_status=resolution_status,
                 # Uniform over the range: naming the distribution is what stops two conforming
                 # implementations producing materially different corpora (FR-009d).
-                turn_count=rng.randint(config.turns.min, config.turns.max),
+                turn_count=turn_count,
                 subdomain="",  # assigned below, once the document's list is known
                 created_at=created_at,
                 resolved_at=resolved_at,
