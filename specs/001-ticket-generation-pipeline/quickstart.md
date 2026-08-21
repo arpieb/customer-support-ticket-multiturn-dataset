@@ -37,10 +37,10 @@ guarantee (research R7).
 ## Scenario 1 — Generate a small corpus (US1, SC-002)
 
 ```bash
-uv run ticket-dataset generate --config configs/smoke.toml --seed 42
+uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42
 ```
 
-`configs/smoke.toml` requests 20 records, so the scenario costs about 40 model calls. It also declares
+`configs/samples/smoke.toml` requests 20 records, so the scenario costs about 40 model calls. It also declares
 `composition_tolerance_pp = 10.0`: at 20 records, per-member apportionment error is bounded only by
 `100/20 = 5pp`, so the 2pp default is arithmetically unachievable and a run would be refused before
 generating (FR-031b). Widening it deliberately is exactly what that requirement asks of an operator.
@@ -79,7 +79,7 @@ print(f'{n} records, all conforming')
 Run with the seeded-defect prompt document, which deliberately elicits identifier-shaped content:
 
 ```bash
-uv run ticket-dataset generate --config configs/planted-pii.toml --seed 7
+uv run ticket-dataset generate --config configs/samples/planted-pii.toml --seed 7
 ```
 
 **Expect**: exit `1`, and a report that enumerates the covered identifier types (`EMAIL`, `PHONE`,
@@ -166,11 +166,11 @@ checksum the manifest records (FR-025b).
 ## Scenario 4 — Composition control (US4, SC-008)
 
 ```bash
-uv run ticket-dataset generate --config configs/billing-heavy.toml --seed 3
+uv run ticket-dataset generate --config configs/samples/billing-heavy.toml --seed 3
 ```
 
 **Expect**: every **member** of every controlled dimension within ±2 percentage points of its request, with
-all three distributions — requested, assigned, achieved — in the report. `configs/billing-heavy.toml`
+all three distributions — requested, assigned, achieved — in the report. `configs/samples/billing-heavy.toml`
 requests 500 records, comfortably above the 50-record floor the 2pp default requires.
 
 ```bash
@@ -194,8 +194,8 @@ for dim in m['composition_requested']:
 An unsatisfiable request must refuse with exit `2` and name the offending part — before any model call:
 
 ```bash
-uv run ticket-dataset generate --config configs/bad-composition.toml --seed 1  # proportions sum to 1.4
-uv run ticket-dataset generate --config configs/tight-tolerance.toml --seed 1  # 20 records at 2pp
+uv run ticket-dataset generate --config configs/samples/bad-composition.toml --seed 1  # proportions sum to 1.4
+uv run ticket-dataset generate --config configs/samples/tight-tolerance.toml --seed 1  # 20 records at 2pp
 ```
 
 The second must name both remedies: at least 50 records, or a tolerance of at least 5pp (FR-031b).
@@ -205,7 +205,7 @@ The second must name both remedies: at least 50 records, or a tolerance of at le
 ## Scenario 5 — Interrupt and resume (SC-012, FR-015a–e)
 
 ```bash
-uv run ticket-dataset generate --config configs/medium.toml --seed 11 &
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 &
 sleep 30 && kill -INT %1
 ```
 
@@ -217,7 +217,7 @@ threshold mid-run. All three paths take the same route: stop, checkpoint, exit `
 `data/interim/<run_id>/`, both retained because the run did not succeed (FR-015i).
 
 ```bash
-uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume
 ```
 
 **Expect**: exit `0`, with no record regenerated and no `record_id` duplicated. The resume found its
@@ -246,10 +246,10 @@ Two more failure paths:
 
 ```bash
 printf 'garbage' > data/interim/<run_id>/checkpoint.json
-uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume   # exit 2, staging preserved
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume   # exit 2, staging preserved
 
-uv run ticket-dataset generate --config configs/medium.toml --seed 11 &          # claims the output path
-uv run ticket-dataset generate --config configs/medium.toml --seed 11            # exit 2, path claimed
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 &          # claims the output path
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11            # exit 2, path claimed
 ```
 
 An unreadable checkpoint refuses and leaves the partial output alone — restarting is the operator's explicit
@@ -261,8 +261,8 @@ than at the end, after both runs have paid for their calls (FR-014a).
 ## Scenario 6 — Concurrency does not compromise reproducibility (SC-013)
 
 ```bash
-uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --out data/release/c1.jsonl    # concurrency 1
-uv run ticket-dataset generate --config configs/smoke16.toml --seed 42 --out data/release/c16.jsonl # concurrency 16
+uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42 --out data/release/c1.jsonl    # concurrency 1
+uv run ticket-dataset generate --config configs/samples/smoke16.toml --seed 42 --out data/release/c16.jsonl # concurrency 16
 ```
 
 **Expect**: identical composition and identical per-position seeded choices — same assigned metadata, same
@@ -309,7 +309,7 @@ to matter, the fix is a committed calibration artifact that a datasheet must ref
 
 ## Scale check (SC-001)
 
-`configs/release.toml` requests 100,000 records — on the order of 200,000 model calls before retries and
+`configs/samples/release.toml` requests 100,000 records — on the order of 200,000 model calls before retries and
 discards — and declares a budget (`max_runtime`, `max_model_calls`) so an unattended run has a ceiling. A
 defective generator does not cost the full run either: the privacy and coherence discard rates are
 re-evaluated once 5,000 records have been generated, and a breach stops and checkpoints (FR-037). When

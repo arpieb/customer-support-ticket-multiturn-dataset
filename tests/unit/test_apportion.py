@@ -99,7 +99,7 @@ def test_the_refusal_names_both_remedies() -> None:
 
 
 def test_a_widened_tolerance_makes_a_small_corpus_satisfiable() -> None:
-    # What configs/smoke.toml does: 20 records at 10pp rather than the 2pp default.
+    # What configs/samples/smoke.toml does: 20 records at 10pp rather than the 2pp default.
     assert achievability_problems(_config(record_count=20, composition_tolerance_pp=10.0)) == []
 
 

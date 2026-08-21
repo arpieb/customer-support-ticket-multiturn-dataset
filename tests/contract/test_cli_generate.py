@@ -75,7 +75,7 @@ def test_a_seed_is_required(tmp_path: Path) -> None:
 
 def test_dry_run_plans_without_calling_a_model() -> None:
     # The plan is machine-readable on stdout; progress and prose stay on stderr.
-    result = _run("generate", "--config", "configs/smoke.toml", "--seed", "42", "--dry-run")
+    result = _run("generate", "--config", "configs/samples/smoke.toml", "--seed", "42", "--dry-run")
     assert result.returncode == 0
     plan = json.loads(result.stdout)
     assert plan["slots"] == 20
@@ -86,7 +86,7 @@ def test_dry_run_plans_without_calling_a_model() -> None:
 
 
 def test_stdout_carries_machine_readable_output_only() -> None:
-    result = _run("generate", "--config", "configs/smoke.toml", "--seed", "42", "--dry-run")
+    result = _run("generate", "--config", "configs/samples/smoke.toml", "--seed", "42", "--dry-run")
     json.loads(result.stdout)  # parses cleanly, so no progress text leaked into it
 
 
@@ -103,7 +103,9 @@ def test_an_existing_output_path_is_refused(tmp_path: Path, occupied: str) -> No
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("")
     try:
-        result = _run("generate", "--config", "configs/smoke.toml", "--seed", "42", "--dry-run")
+        result = _run(
+            "generate", "--config", "configs/samples/smoke.toml", "--seed", "42", "--dry-run"
+        )
         assert result.returncode == 2
         assert "no overwrite flag" in result.stderr
     finally:
