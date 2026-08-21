@@ -1,11 +1,14 @@
 """The domain prompt document must declare a usable subdomain list (FR-008a, FR-008d)."""
 
+import re
 from pathlib import Path
 
 import pytest
 
 from ticket_dataset.errors import PromptDocumentError
 from ticket_dataset.generation.domain_doc import load_domain_document
+from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
+from ticket_dataset.privacy.registry import DetectorRegistry
 
 VALID = """---
 domain_id: test-domain
@@ -87,3 +90,47 @@ def test_subdomains_are_ordered_so_the_draw_is_stable(tmp_path: Path) -> None:
     # reassign every slot's subdomain.
     text = "---\nsubdomains:\n  - zeta\n  - alpha\n  - mid\n---\n\n# Body\n\nText.\n"
     assert load_domain_document(_write(tmp_path, text)).subdomains == ("alpha", "mid", "zeta")
+
+
+# --- The prompt's own examples must survive the gate they teach the model to pass -------------
+#
+# Steering is only as good as its examples. An example that the scan would block teaches the
+# model to produce blocked records, and the failure is invisible until a live run wastes them.
+
+_BACKTICKED = re.compile(r"`([^`]+)`")
+
+#: Values the prompt shows in order to forbid them. Each MUST still block — that is what makes it
+#: worth naming — and each MUST still appear in the prompt, so the list cannot outlive its text.
+COUNTER_EXAMPLES = frozenset({"SL-882130477"})
+
+
+def _scan(value: str) -> list:
+    registry = DetectorRegistry()
+    registry.register(DataFogDetector())
+    return registry.scan_text(
+        f"my reference is {value} if that helps",
+        record_id="prompt-example",
+        field_name="turns[0].content",
+    )
+
+
+def _identifier_examples() -> set[str]:
+    body = Path("prompts/domain.md").read_text()
+    return {token for token in _BACKTICKED.findall(body) if any(c.isdigit() for c in token)}
+
+
+def test_every_identifier_the_prompt_offers_is_one_the_gate_accepts() -> None:
+    for example in sorted(_identifier_examples() - COUNTER_EXAMPLES):
+        blocking = [f for f in _scan(example) if f.blocks]
+        assert not blocking, (
+            f"prompts/domain.md offers `{example}` as an example, but the privacy gate blocks it "
+            f"as {[f.category for f in blocking]}. Choose a value the gate accepts, or add it to "
+            f"COUNTER_EXAMPLES if the prompt names it in order to forbid it."
+        )
+
+
+@pytest.mark.parametrize("example", sorted(COUNTER_EXAMPLES))
+def test_the_forbidden_examples_are_present_and_still_blocked(example: str) -> None:
+    # If either half stops holding, the prompt is teaching against a rule that no longer bites.
+    assert example in Path("prompts/domain.md").read_text()
+    assert [f for f in _scan(example) if f.blocks]

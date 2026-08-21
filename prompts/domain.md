@@ -59,7 +59,10 @@ because those ranges cannot belong to anyone:
 - **Phone** — a full ten-digit number whose exchange is `555` and whose line is `0100`–`0199`,
   such as `212-555-0142`. A seven-digit `555-0142` is not recognised as a phone number at all.
 - **Payment card** — the published network test numbers, such as `4111 1111 1111 1111`.
-- **Order and account numbers** — invent freely: `ORD-4417`, `AC-99812`.
+- **Order, account, and serial numbers** — invent freely, with one constraint: **never a run of
+  nine or more consecutive digits**. `ORD-4417`, `AC-99812`, `SL-4417290` are all fine;
+  `SL-882130477` is not. Break a longer identifier with a letter or a hyphen — `SL-A4417290`,
+  `SL-8821-30477` — rather than shortening it.
 
 **When a conversation needs two or more distinct addresses**, vary the *reserved* domain rather
 than inventing a realistic one. An address change, a forwarding request, a duplicate account —
@@ -74,6 +77,11 @@ and the work is wasted.
 
 Never write a Social Security number or other government identifier, even a made-up one. No range
 is reserved for fiction there, so any such value blocks the record and it cannot be exempted.
+
+This is also why the digit-run rule above matters. Nothing distinguishes a nine-digit serial from
+a Social Security number written without dashes, so the scan blocks both, and a run of ten or
+eleven digits reads as a phone number outside the reserved range. The serial is harmless and the
+record is still lost. Keep bare digit runs to eight or fewer and the collision cannot arise.
 
 This is the primary control on privacy; the automated scan is a safety net that confirms it held,
 not a substitute for it (spec Assumptions).
