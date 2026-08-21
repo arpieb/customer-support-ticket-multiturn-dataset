@@ -56,8 +56,8 @@ def _run(*args: str, cwd: Path) -> subprocess.CompletedProcess:
 @pytest.fixture
 def workspace(tmp_path: Path) -> Path:
     """A scratch project: prompts, a config, and the data directories."""
-    (tmp_path / "prompts").mkdir()
-    (tmp_path / "prompts" / "domain.md").write_text(
+    (tmp_path / "prompts" / "samples").mkdir(parents=True)
+    (tmp_path / "prompts" / "samples" / "domain.md").write_text(
         "---\nsubdomains:\n  - refund\n  - shipping-delay\n---\n\n# Domain\n\nSupport tickets.\n"
     )
     (tmp_path / "prompts" / "coherence-rubric.md").write_text(
@@ -214,7 +214,7 @@ def test_from_manifest_reproduces_without_a_config_file_at_all(workspace: Path) 
 
 def test_from_manifest_refuses_when_the_prompt_has_since_changed(workspace: Path) -> None:
     assert _run("generate", "--config", "run.toml", "--seed", "42", cwd=workspace).returncode == 0
-    prompt = workspace / "prompts" / "domain.md"
+    prompt = workspace / "prompts" / "samples" / "domain.md"
     prompt.write_text(prompt.read_text() + "\nAn added instruction.\n")
 
     result = _run(
@@ -232,7 +232,7 @@ def test_from_manifest_refuses_when_the_prompt_has_since_changed(workspace: Path
 
 def test_allow_drift_proceeds_but_says_it_is_not_a_reproduction(workspace: Path) -> None:
     assert _run("generate", "--config", "run.toml", "--seed", "42", cwd=workspace).returncode == 0
-    prompt = workspace / "prompts" / "domain.md"
+    prompt = workspace / "prompts" / "samples" / "domain.md"
     prompt.write_text(prompt.read_text() + "\nAn added instruction.\n")
 
     result = _run(

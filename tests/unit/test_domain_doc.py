@@ -37,7 +37,7 @@ def test_a_valid_document_parses(tmp_path: Path) -> None:
 
 def test_the_committed_document_is_valid() -> None:
     # The project's own prompt document must satisfy its own parser.
-    document = load_domain_document(Path("prompts/domain.md"))
+    document = load_domain_document(Path("prompts/samples/domain.md"))
     assert len(document.subdomains) >= 10
 
 
@@ -115,7 +115,7 @@ def _scan(value: str) -> list:
 
 
 def _identifier_examples() -> set[str]:
-    body = Path("prompts/domain.md").read_text()
+    body = Path("prompts/samples/domain.md").read_text()
     return {token for token in _BACKTICKED.findall(body) if any(c.isdigit() for c in token)}
 
 
@@ -123,14 +123,14 @@ def test_every_identifier_the_prompt_offers_is_one_the_gate_accepts() -> None:
     for example in sorted(_identifier_examples() - COUNTER_EXAMPLES):
         blocking = [f for f in _scan(example) if f.blocks]
         assert not blocking, (
-            f"prompts/domain.md offers `{example}` as an example, but the privacy gate blocks it "
-            f"as {[f.category for f in blocking]}. Choose a value the gate accepts, or add it to "
-            f"COUNTER_EXAMPLES if the prompt names it in order to forbid it."
+            f"prompts/samples/domain.md offers `{example}` as an example, but the privacy gate "
+            f"blocks it as {[f.category for f in blocking]}. Choose a value the gate accepts, "
+            f"or add it to COUNTER_EXAMPLES if the prompt names it in order to forbid it."
         )
 
 
 @pytest.mark.parametrize("example", sorted(COUNTER_EXAMPLES))
 def test_the_forbidden_examples_are_present_and_still_blocked(example: str) -> None:
     # If either half stops holding, the prompt is teaching against a rule that no longer bites.
-    assert example in Path("prompts/domain.md").read_text()
+    assert example in Path("prompts/samples/domain.md").read_text()
     assert [f for f in _scan(example) if f.blocks]

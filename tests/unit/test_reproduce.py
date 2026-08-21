@@ -147,12 +147,17 @@ def test_a_recovered_legacy_config_no_longer_carries_the_endpoint(tmp_path: Path
     assert "sk-SECRET" not in text
 
 
-def test_the_committed_release_manifest_round_trips() -> None:
-    # A real manifest from a real run, not a fixture shaped to pass.
-    path = Path("data/release/1e6fcf13-ebc7-4fd7-9d9d-b1325b3492de.manifest.json")
-    if not path.exists():
+def test_a_real_local_manifest_round_trips() -> None:
+    """Opportunistic: whatever manifest a local run happens to have left behind.
+
+    Not a fixture shaped to pass, which is the point — but `data/` is not version controlled, so
+    this cannot run in CI and must not name a particular run. It skips where there is nothing to
+    check rather than pinning a run identifier that a routine clean-up would silently retire.
+    """
+    manifests = sorted(Path("data/release").glob("*.manifest.json"))
+    if not manifests:
         pytest.skip("no local release manifest")
-    manifest = json.loads(path.read_text())
+    manifest = json.loads(manifests[0].read_text())
     config = config_from_manifest(manifest)
     text = render_config_toml(config)
 
@@ -161,4 +166,6 @@ def test_the_committed_release_manifest_round_trips() -> None:
     assert GenerationConfig.model_validate(tomllib.loads(text)).model_dump(
         mode="json"
     ) == config.model_dump(mode="json")
-    assert "100.83.200.67" not in text
+    for spec in manifest["config"]["models"].values():
+        for value in spec.get("extra", {}).values():
+            assert str(value) not in text or not str(value).startswith("http")

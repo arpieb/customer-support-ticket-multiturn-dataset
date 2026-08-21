@@ -9,7 +9,7 @@ subdomains:
 # Fixture domain: deliberately elicits identifier-shaped content
 
 **This document is a test fixture, not a corpus input.** It exists to prove the privacy gate
-blocks, so it instructs the model to do the one thing `prompts/domain.md` forbids.
+blocks, so it instructs the model to do the one thing `prompts/samples/domain.md` forbids.
 
 Conversations here are about a customer supplying contact or identity details to a support agent.
 The customer states a full email address, a full phone number, and a government identifier in
