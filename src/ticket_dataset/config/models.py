@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ticket_dataset.config import defaults
 from ticket_dataset.schema.enums import COMPOSITION_DIMENSIONS
@@ -22,6 +22,29 @@ SUM_EPSILON = 1e-6
 
 class _Config(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+#: Substrings that mark a setting as describing how to reach a provider rather than what to ask
+#: it for. Matched on the key name, case-insensitively. This list only has to be good enough to
+#: catch a mistake: it is a diagnostic that redirects the operator to ``connection``, not the
+#: mechanism that keeps connection settings out of artifacts — that is structural.
+_CONNECTION_MARKERS = (
+    "api_key",
+    "api_base",
+    "api_version",
+    "base_url",
+    "auth",
+    "token",
+    "secret",
+    "password",
+    "credential",
+    "organization",
+)
+
+
+def _is_connection_setting(name: str) -> bool:
+    lowered = name.lower()
+    return any(marker in lowered for marker in _CONNECTION_MARKERS)
 
 
 class ModelSpec(_Config):
@@ -46,6 +69,33 @@ class ModelSpec(_Config):
     #: budgets, safety settings. Recorded verbatim in the manifest, because anything that shapes
     #: output is provenance (FR-027).
     extra: dict[str, Any] = Field(default_factory=dict)
+    #: How to *reach* the provider — endpoint, API version, credentials. Excluded from every
+    #: serialisation, so it cannot reach a manifest that ships with a release (FR-008, FR-042).
+    #:
+    #: Separate from ``extra`` on purpose. These settings do not shape output: the same model at
+    #: a different address produces the same distribution, so they were never provenance. Keeping
+    #: them in their own field makes their exclusion structural rather than a list of names that
+    #: has to stay ahead of every provider's vocabulary.
+    connection: dict[str, Any] = Field(default_factory=dict, exclude=True)
+
+    @field_validator("extra")
+    @classmethod
+    def _no_connection_settings_in_extra(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """Refuse settings that belong in ``connection``, rather than recording them.
+
+        ``extra`` is written verbatim into the manifest, so a credential placed here would be
+        published — which FR-008 prohibits outright. Refusing at load keeps the value out of the
+        process entirely: what is never read cannot be written by accident.
+        """
+        misplaced = sorted(k for k in value if _is_connection_setting(k))
+        if misplaced:
+            raise ValueError(
+                f"{', '.join(misplaced)} belong(s) in [models.<role>.connection], not extra — "
+                "extra is recorded verbatim in the manifest, and connection settings are never "
+                "recorded. Credentials are better supplied through the environment, which this "
+                "pipeline never reads into an artifact"
+            )
+        return value
 
 
 class Models(_Config):

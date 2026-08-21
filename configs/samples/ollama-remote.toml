@@ -1,8 +1,13 @@
 # Generating against a remotely hosted Ollama server.
 #
 # litellm reaches Ollama over HTTP, so nothing here is special-cased in this project: the model
-# string names the provider and `extra` carries whatever that provider needs. `api_base` is the
+# string names the provider and `connection` carries what it takes to reach it. `api_base` is the
 # one setting a remote host requires — without it litellm assumes http://localhost:11434.
+#
+# `connection` is separate from `extra` for a reason. `extra` is recorded verbatim in the run's
+# manifest, because settings that shape output are provenance; `connection` is never recorded
+# anywhere, because an endpoint is deployment infrastructure and a manifest ships with the
+# published dataset. Put credentials in the environment, which is never read into an artifact.
 #
 # Use `ollama_chat/` rather than `ollama/`: the chat endpoint honours the system message this
 # pipeline relies on for its cache-stable prompt prefix, and supports the structured-output
@@ -35,14 +40,14 @@ max = 8
 model_id = "ollama_chat/llama3.1"
 max_tokens = 4096
 
-[models.generator.extra]
+[models.generator.connection]
 api_base = "http://ollama.internal:11434"
 
 [models.judge]
 model_id = "ollama_chat/llama3.1"
 max_tokens = 2048
 
-[models.judge.extra]
+[models.judge.connection]
 api_base = "http://ollama.internal:11434"
 
 # 20 records cannot represent the default distribution's smallest shares, so the mix is flattened

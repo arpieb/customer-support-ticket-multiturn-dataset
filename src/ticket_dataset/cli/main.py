@@ -226,6 +226,9 @@ def _report_reproduction(report) -> None:
         _note(f"  code_revision    {report.commit[:12]}{dirty}")
     for name, value in report.environment_overrides.items():
         _note(f"  environment      {name}={value} must be set to match")
+    for role, keys in report.connection_keys.items():
+        # Recorded by name only, so reproducing needs them supplied rather than recovered.
+        _note(f"  connection       {role} used {', '.join(keys)} — supply these yourself")
 
 
 def _reproduce_from_manifest(

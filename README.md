@@ -40,15 +40,25 @@ configuration change, not a code change.
 ### A self-hosted or remote provider
 
 Anything litellm reaches works, including a remote Ollama server. The model string names the
-provider; anything that provider needs goes in `extra`:
+provider; what it takes to reach that provider goes in `connection`:
 
 ```toml
 [models.generator]
 model_id = "ollama_chat/llama3.1"
 
-[models.generator.extra]
+[models.generator.connection]
 api_base = "http://ollama.internal:11434"    # without this, litellm assumes localhost
 ```
+
+`connection` is deliberately separate from `extra`. Settings that shape output — reasoning effort,
+thinking budgets — belong in `extra` and are recorded verbatim in the manifest, because they are
+provenance. Settings that only say *how to reach* the provider go in `connection` and are recorded
+nowhere: a manifest ships with the published dataset, and an endpoint address is infrastructure
+that reading a corpus never needs. The manifest notes which connection settings were supplied, by
+name, so an alternate endpoint is still visible as provenance without its address being published.
+
+Putting an `api_key` in `extra` is refused rather than recorded. Supply credentials through the
+environment, which this pipeline reads for access and never writes into an artifact.
 
 `configs/samples/ollama-remote.toml` is a worked example. Two things worth knowing:
 

@@ -148,6 +148,9 @@ class LiteLLMModelClient(ModelClient):
         # safety settings. Passed through untyped on purpose: typing them would put one vendor's
         # vocabulary back into the configuration.
         request.update(spec.extra)
+        # How to reach the provider. Merged last and kept in its own field so that no artifact
+        # writer ever sees it: this is the only place connection settings are read (FR-042).
+        request.update(spec.connection)
 
         try:
             response = await self._completion(**request)

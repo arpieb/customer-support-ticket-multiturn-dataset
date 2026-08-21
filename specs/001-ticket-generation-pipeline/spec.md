@@ -245,6 +245,9 @@ stated tolerance.
   — MUST be recorded in the manifest as a non-deterministic input. An unrecorded environment setting that
   alters output is exactly the hidden state FR-008 prohibits; recording it converts it into provenance. A
   setting that cannot be observed and recorded MUST cause the run to refuse rather than proceed unrecorded.
+  A setting whose value is a **network address** MUST be recorded as having been set rather than by value,
+  per FR-042; the fact of the override is what makes it provenance, and the address is not needed to audit
+  a corpus.
 - **FR-008a**: Support scenarios MUST derive from a committed domain prompt document, from which the
   generation model elaborates plausible subdomain scenarios. The prompt document is a run input: its
   identifying hash MUST be recorded in the manifest, so a change to it is visible as a change in provenance.
@@ -655,6 +658,17 @@ stated tolerance.
   that the result will not reproduce the recorded corpus. Rationale: a configuration that travels alone
   invites a rerun against a changed prompt to be mistaken for a faithful reproduction, which is a worse
   failure than transcribing the configuration by hand, because it does not announce itself.
+- **FR-042**: Settings that describe **how to reach a provider** — endpoint address, API version, keys and
+  tokens — MUST be configured separately from settings that shape what a model produces, and MUST NOT be
+  written into any artifact a release ships with. The separation MUST be structural rather than a list of
+  redacted names: a configuration surface that is open-ended by design cannot be filtered safely by
+  enumerating the vocabulary of every provider. A credential placed among output-shaping settings MUST be
+  refused at load rather than accepted and stripped later, so that a value which would be published is
+  never read at all. The manifest MUST record which connection settings a run used **by name**, so an
+  alternate endpoint remains visible as provenance under FR-008c without its address being disclosed.
+  Rationale: a manifest travels with the published dataset, so anything in it is disclosed to every reader
+  of the corpus. Recording a digest instead of the value was rejected — an internal hostname or address
+  carries too little entropy to survive brute force, so a hash would assure without protecting.
 
 ### Key Entities
 
