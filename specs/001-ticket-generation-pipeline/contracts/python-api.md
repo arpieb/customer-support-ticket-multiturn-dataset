@@ -37,7 +37,7 @@ its output to `contracts/record.schema.json` and fails on drift.
 ```python
 from ticket_dataset import GenerationConfig, Composition, load_config
 
-config = load_config(Path("configs/smoke.toml"))  # raises ConfigError, naming the problem
+config = load_config(Path("configs/samples/smoke.toml"))  # raises ConfigError, naming the problem
 ```
 
 `load_config` performs **total** validation (FR-011): shape, ranges, threshold bounds, turn range,

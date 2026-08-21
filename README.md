@@ -50,7 +50,7 @@ model_id = "ollama_chat/llama3.1"
 api_base = "http://ollama.internal:11434"    # without this, litellm assumes localhost
 ```
 
-`configs/ollama-remote.toml` is a worked example. Two things worth knowing:
+`configs/samples/ollama-remote.toml` is a worked example. Two things worth knowing:
 
 - **Use `ollama_chat/`, not `ollama/`.** The chat endpoint honours the system message this
   pipeline relies on for its cache-stable prompt prefix, and supports the structured-output
@@ -76,10 +76,10 @@ the release path never depends on a remote service.
 
 ## Your first corpus
 
-`configs/smoke.toml` asks for 20 records — about 40 model calls.
+`configs/samples/smoke.toml` asks for 20 records — about 40 model calls.
 
 ```bash
-uv run ticket-dataset generate --config configs/smoke.toml --seed 42
+uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42
 ```
 
 It reports progress as it goes — records completed, elapsed time, rate, and an estimate — so a
@@ -95,7 +95,7 @@ Progress goes to stderr; stdout carries only the machine-readable report, so pip
 Check what it would do first, without spending anything:
 
 ```bash
-uv run ticket-dataset generate --config configs/smoke.toml --seed 42 --dry-run
+uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42 --dry-run
 ```
 
 On success you get three files in `data/release/`:
@@ -140,11 +140,16 @@ Two things commonly surprise people, and both refuse **before** any model call r
 - **Proportions must sum to 1.0** for each dimension you specify.
 - **Small corpora cannot hold tight tolerances.** Assigning whole records bounds per-member error
   at `100 / record_count`, so a 20-record corpus cannot honour the default ±2pp. The run refuses
-  and names both remedies — a larger corpus, or a wider tolerance. `configs/smoke.toml` widens it
-  to 10pp for exactly this reason.
+  and names both remedies — a larger corpus, or a wider tolerance.
+  `configs/samples/smoke.toml` widens it to 10pp for exactly this reason.
 
-See `configs/` for worked examples, and
+See `configs/samples/` for worked examples, and
 [the feature specification](specs/001-ticket-generation-pipeline/spec.md) for every setting.
+
+Those samples are tracked; anything else under `configs/` is ignored by git. Put your own configs
+there — they tend to carry a host address or a model only you can reach, which is nobody else's
+default. Nothing is lost by keeping them out of the repository: every manifest embeds the full
+resolved config a run used, so a published corpus stays reproducible from its own artifacts.
 
 ## What the run guarantees
 
@@ -164,7 +169,7 @@ discard rate breached its threshold — the partial corpus and its checkpoint st
 `data/interim/<run_id>/`, and nothing appears in `data/release/`.
 
 ```bash
-uv run ticket-dataset generate --config configs/medium.toml --seed 11 --resume
+uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume
 ```
 
 Resuming refuses if the configuration, seed, prompt document, or rubric changed since the

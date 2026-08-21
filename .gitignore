@@ -17,3 +17,7 @@ data/
 
 # macOS
 .DS_Store
+
+# Config files are personal to a machine; only the committed samples are tracked.
+configs/*
+!configs/samples/

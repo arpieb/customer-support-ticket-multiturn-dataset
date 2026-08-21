@@ -131,12 +131,12 @@ async def test_drift_past_the_tolerance_fails_the_run(tmp_path: Path, staging_ro
 
 def test_proportions_that_do_not_sum_are_refused() -> None:
     with pytest.raises(ConfigError, match="sum to 1.4"):
-        load_config(Path("configs/bad-composition.toml"))
+        load_config(Path("configs/samples/bad-composition.toml"))
 
 
 def test_an_unachievable_tolerance_is_refused_with_both_remedies() -> None:
     with pytest.raises(ConfigError) as caught:
-        load_config(Path("configs/tight-tolerance.toml"))
+        load_config(Path("configs/samples/tight-tolerance.toml"))
     joined = " ".join(caught.value.problems)
     assert "unachievable at 20 records" in joined
     assert "at least 50 records" in joined
@@ -144,6 +144,6 @@ def test_an_unachievable_tolerance_is_refused_with_both_remedies() -> None:
 
 
 def test_the_billing_heavy_config_is_satisfiable() -> None:
-    config = load_config(Path("configs/billing-heavy.toml"))
+    config = load_config(Path("configs/samples/billing-heavy.toml"))
     assert config.record_count == 500
     assert config.composition_tolerance_pp == 2.0
