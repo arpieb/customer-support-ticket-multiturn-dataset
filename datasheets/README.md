@@ -6,7 +6,9 @@ and the [metadata spec](https://github.com/huggingface/hub-docs/blob/main/datase
 
 - **`TEMPLATE.md`** — fill this in for a new release. It is domain-agnostic: any corpus this
   pipeline produces from any domain prompt.
-- **`v0.1.0.md`** — a worked example, for the consumer-electronics sample domain.
+- **`EXAMPLE.md`** — the template filled in against a real run of the consumer-electronics sample
+  domain, so it can be read alongside. It is not a release: this repository commits no corpus, and
+  no dataset version has been published from it.
 
 These are documents, not automation. Releasing is a manual act: copy the card for the version
 being released to the Hub dataset repository as its `README.md`, and upload the corpus alongside
