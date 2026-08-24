@@ -4,11 +4,19 @@ A reproducible generator for multi-turn customer support conversations: syntheti
 with conversation turns, ticket metadata, and the provenance needed to audit how any corpus was
 produced.
 
+**The tool is the deliverable, not any particular dataset.** You supply a domain prompt document
+declaring its own subdomains, and a run produces a corpus for that domain. The consumer-electronics
+document under `prompts/samples/` is one example of such an input, not the subject of this project;
+insurance claims, IT helpdesk, or anything else that fits a customer-and-agent ticket works the
+same way. Publishing a finished corpus — to the Hugging Face Hub or anywhere else — is a manual
+act outside this repository; see [`datasheets/`](datasheets/) for the card that should travel with
+one.
+
 Every run takes an explicit seed and a single configuration, writes a manifest recording how it
 happened, and passes its own output through a blocking privacy scan before anything reaches the
 release path. Those are not features bolted on — they are what
-[the project constitution](.specify/memory/constitution.md) requires of any dataset this
-repository publishes.
+[the project constitution](.specify/memory/constitution.md) requires of any corpus this
+generator produces.
 
 ## Install
 
@@ -289,6 +297,19 @@ Stated here rather than discovered later:
   candidates. Pointing the roles at different models is a configuration change.
 - **Turn counts are uniform over the configured range**, which produces more long conversations
   than real support traffic contains.
+
+## Releasing a corpus
+
+A run publishing to `data/release/` is not a release. `data/` is outside version control, so what
+the repository keeps is the evidence: the dataset card in `datasheets/`, the calibration record in
+`calibration/`, and — through the card — the run identifier, seed, and output digest that bind a
+corpus to the run that made it.
+
+Releases are manual and go to the Hugging Face Hub. One card per version in `datasheets/`,
+following the [Hub dataset card template](https://huggingface.co/docs/hub/datasets-cards); copy it
+to the Hub repository as its `README.md` and upload the corpus beside it. Nothing in `src/` knows
+the Hub exists, and nothing should teach it — see `datasheets/README.md` for the versioning
+convention.
 
 ## Development
 
