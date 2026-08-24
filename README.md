@@ -4,11 +4,19 @@ A reproducible generator for multi-turn customer support conversations: syntheti
 with conversation turns, ticket metadata, and the provenance needed to audit how any corpus was
 produced.
 
+**The tool is the deliverable, not any particular dataset.** You supply a domain prompt document
+declaring its own subdomains, and a run produces a corpus for that domain. The consumer-electronics
+document under `prompts/samples/` is one example of such an input, not the subject of this project;
+insurance claims, IT helpdesk, or anything else that fits a customer-and-agent ticket works the
+same way. Publishing a finished corpus — to the Hugging Face Hub or anywhere else — is a manual
+act outside this repository; see [`datasheets/`](datasheets/) for the card that should travel with
+one.
+
 Every run takes an explicit seed and a single configuration, writes a manifest recording how it
 happened, and passes its own output through a blocking privacy scan before anything reaches the
 release path. Those are not features bolted on — they are what
-[the project constitution](.specify/memory/constitution.md) requires of any dataset this
-repository publishes.
+[the project constitution](.specify/memory/constitution.md) requires of any corpus this
+generator produces.
 
 ## Install
 
