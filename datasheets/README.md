@@ -4,10 +4,39 @@ One card per released dataset version, named `v<MAJOR>.<MINOR>.<PATCH>.md`, foll
 [Hugging Face dataset card template](https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/datasetcard_template.md)
 and the [metadata spec](https://github.com/huggingface/hub-docs/blob/main/datasetcard.md).
 
+- **`TEMPLATE.md`** — fill this in for a new release. It is domain-agnostic: any corpus this
+  pipeline produces from any domain prompt.
+- **`v0.1.0.md`** — a worked example, for the consumer-electronics sample domain.
+
 These are documents, not automation. Releasing is a manual act: copy the card for the version
 being released to the Hub dataset repository as its `README.md`, and upload the corpus alongside
 it. Nothing in `src/` knows the Hub exists, and nothing here should teach it — the pipeline's job
 ends when a run publishes to `data/release/`.
+
+## Filling in a card
+
+`TEMPLATE.md` opens with instructions in an HTML comment; strip that comment once the card is
+written. It marks two kinds of placeholder, and the distinction is the point:
+
+- `{{ FACT: ... }}` names the artifact and field a value must be read from. Never inferred, never
+  carried across from a conversation, never rounded into something tidier.
+- `{{ WRITE: ... }}` is prose to compose — judgement rather than lookup.
+
+A card is worth something only because a reader can check it against the manifest, the report and
+the corpus. One invented number costs the whole document its standing, so the template names a
+source for every figure rather than trusting whoever fills it in to remember.
+
+Two habits the template enforces, because both are easy to get wrong:
+
+**Verify against the corpus, not the config.** A config states what was requested; the corpus is
+what survived the gates. Turn ranges, field values and subdomain coverage are computed from the
+records. `composition_achieved` in the manifest is the achieved distribution and may be quoted.
+
+**State what is unflattering.** The template lists what to check — whether one model both generated
+and judged, whether a composition dimension is constant and therefore useless as a signal, what
+calibration found, how small the corpus is, what the privacy scan does not cover. A card that
+only lists strengths is worth nothing to someone deciding whether to trust the data, and an
+omission a reader discovers later discredits everything else in it.
 
 ## Versioning
 
@@ -20,6 +49,16 @@ dataset versions, and a generator fix that leaves the corpus untouched is not a 
 A version is marked in git with a `dataset-v<version>` tag on the commit whose card describes it.
 That is also how the Hub versions a dataset: revisions are git refs, so a tag here and a tag there
 mean the same thing without anything having to synchronise them.
+
+## Defaults
+
+**License: `cc-by-4.0`**, unless a domain calls for something else. Attribution-only suits a
+corpus that is synthetic by construction: there is no underlying data whose terms could constrain
+reuse, and requiring attribution keeps the provenance trail — which is the whole argument for
+trusting the corpus — attached to it downstream.
+
+**No test split.** The pipeline emits one corpus per run. Splitting is the consumer's decision and
+depends on their task; a split baked into the card would be an arbitrary one.
 
 ## What a card must carry
 
