@@ -171,8 +171,13 @@ explicit note only when the feature touches no release-path data.
 - [ ] TXXX Quality invariants enforced: turn ordering, role alternation, no empty or truncated
       turns, deduplication (Constitution V)
 - [ ] TXXX Contract and edge-case tests for every data-transforming module (Constitution V)
-- [ ] TXXX Documented random-sample human review recorded before release (Constitution V)
-- [ ] TXXX Dataset version bump + datasheet update (composition, method, limitations, intended use)
+- [ ] TXXX Provide the means to record a documented random-sample human review, and the
+      calibration behind it, so whoever publishes a corpus can discharge Constitution V. A
+      generator repository never performs the release itself; it owes the tooling and the place
+      to keep the evidence
+- [ ] TXXX Provide a dataset card template and a stated versioning convention, covering
+      composition, method, model identity, limitations, intended use, and any active privacy
+      exception — filled in per corpus by whoever publishes it
 
 ---
 

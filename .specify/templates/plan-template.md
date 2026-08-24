@@ -53,7 +53,8 @@ one-line justification. Any FAIL must either be resolved or recorded in Complexi
 
 **Constraints check**: dependencies managed via `uv` with `uv.lock` updated in the same change;
 JSONL is the source of truth; release-path artifacts are separated by directory from scratch work;
-large artifacts represented by config + manifest + checksums rather than committed directly.
+no corpus, manifest, or report is committed — the dataset card carries a corpus's provenance and
+travels with it to wherever it is published.
 
 ## Project Structure
 

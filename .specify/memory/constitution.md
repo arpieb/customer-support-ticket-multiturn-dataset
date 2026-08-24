@@ -1,6 +1,29 @@
 <!--
-Sync Impact Report
-==================
+Sync Impact Report — 1.1.0 (2026-08-24)
+=======================================
+Version change: 1.0.0 → 1.1.0
+Bump rationale: MINOR — materially changes guidance in Technology & Data Constraints without
+adding, removing, or redefining a principle.
+
+Modified sections:
+  Technology & Data Constraints: "Large artifacts" → "Corpora are not committed"
+
+What changed and why: the previous rule assumed the repository would hold release evidence —
+"the repository stores the generation config, manifest, and checksums instead" — which was never
+true in practice, since `data/` is gitignored in its entirety. The framing it rested on has also
+moved: this repository is a general-purpose generator, and the corpora it produces are published
+manually elsewhere. Evidence now follows the artifact, carried by the dataset card, rather than
+staying behind in the repository that produced it.
+
+Templates updated in this change, per the propagation rule in Governance:
+  ✅ .specify/templates/plan-template.md — Constraints check no longer asserts that large
+     artifacts are represented in-repo by config + manifest + checksums
+  ✅ .specify/templates/tasks-template.md — release-gate tasks reframed as obligations on
+     whoever publishes a corpus, which a generator repository discharges by providing the means
+  ✅ .specify/templates/spec-template.md — reviewed; encodes no gate touching this rule
+
+Superseded report (1.0.0)
+=========================
 Version change: (unversioned template) → 1.0.0
 Bump rationale: MAJOR/initial — first ratified constitution; all five principles newly
 defined, replacing unfilled template placeholders.
@@ -113,8 +136,13 @@ and cost far more to remediate than to prevent. Gates are cheap; a recalled data
 - **Interchange format**: Records are serialized as JSON Lines (one record per line, UTF-8).
   Alternative formats MAY be added as additional exports but MUST be generated from the JSONL
   source of truth, never authored independently.
-- **Large artifacts**: Dataset files that exceed practical Git limits MUST NOT be committed
-  directly; the repository stores the generation config, manifest, and checksums instead.
+- **Corpora are not committed**: This repository is a generator, not a dataset. No corpus, and no
+  manifest or report describing one, is committed — `data/` is outside version control in its
+  entirety, including artifacts small enough that Git would tolerate them. The **dataset card**
+  carries what a reader needs to bind a corpus to its origin — run identifier, seed, output digest,
+  model identity, and filter accounting — and travels with the corpus to wherever it is published.
+  Evidence follows the artifact rather than staying behind in the repository that produced it,
+  because a corpus is consumed by people who will never see this repository.
 - **Manifests**: Every run writes a manifest recording seed, config, code revision, input hashes,
   output record count, filter accounting, and schema version.
 
@@ -151,4 +179,4 @@ completed, that validation gates ran, and that any complexity is justified rathe
 Runtime development guidance for coding agents lives in `CLAUDE.md` and in the active feature plan;
 those documents elaborate on this constitution but never override it.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-18 | **Last Amended**: 2026-08-18
+**Version**: 1.1.0 | **Ratified**: 2026-08-18 | **Last Amended**: 2026-08-24

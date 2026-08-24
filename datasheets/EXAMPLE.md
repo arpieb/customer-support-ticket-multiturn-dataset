@@ -1,3 +1,14 @@
+<!--
+A WORKED EXAMPLE, NOT A RELEASE.
+
+This is `TEMPLATE.md` filled in against a real run, kept so the template has something concrete to
+be read alongside. No dataset version 0.1.0 has been published: this repository is a generator and
+commits no corpus, so the run and corpus described below exist only on the machine that produced
+them. The numbers are real, which is the point — every one was read from that run's manifest,
+report and corpus rather than invented, and that is the standard a filled-in card is held to.
+
+Delete this comment when you fill in a card of your own.
+-->
 ---
 # For reference on dataset card metadata, see the spec: https://github.com/huggingface/hub-docs/blob/main/datasetcard.md?plain=1
 # Doc / guide: https://huggingface.co/docs/hub/datasets-cards
@@ -77,7 +88,7 @@ Suitable for:
   and carries stable identifiers;
 - teaching and demonstration, where a real support archive would be inappropriate to distribute.
 
-At 100 records this version is best treated as a **pilot**: large enough to exercise a pipeline
+At 100 records this corpus is best treated as a **pilot**: large enough to exercise a pipeline
 end to end, too small to train on or to draw distributional conclusions from.
 
 ### Out-of-Scope Use
@@ -248,7 +259,7 @@ the repository rather than resampling this one.
   author       = {Bates, Robert},
   title        = {Synthetic Multi-Turn Customer Support Tickets (Consumer Electronics)},
   year         = {2026},
-  version      = {0.1.0},
+  version      = {0.1.0},          % the dataset version this card describes
   howpublished = {\url{https://github.com/arpieb/customer-support-ticket-multiturn-dataset}}
 }
 ```
