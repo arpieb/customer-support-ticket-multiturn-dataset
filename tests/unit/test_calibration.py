@@ -20,6 +20,7 @@ from ticket_dataset.run.calibration import (
     per_criterion_gap,
     rank_correlation,
     score_spread,
+    unusable_criteria,
 )
 
 
@@ -309,3 +310,41 @@ def test_the_loaded_sample_carries_its_rubric(tmp_path: Path) -> None:
         ],
     )
     assert load_scored_sample(path)[0].rubric_id == "coherence-v1"
+
+
+def test_criteria_scored_with_nothing_to_compare_them_to_is_reported() -> None:
+    """Scoring per criterion is real effort; discarding it silently is the wrong failure.
+
+    A record carries only the weighted mean (FR-009p), so nothing supplies the judge's side.
+    A reviewer who fills `human_criteria` in gets an empty comparison, and needs to be told.
+    """
+    records = [
+        ScoredRecord(
+            record_id="a",
+            judge_score=0.9,
+            human_score=0.7,
+            human_criteria={"single_issue": 0.8, "metadata_fit": 0.6},
+        )
+    ]
+    assert unusable_criteria(records)
+    assert per_criterion_gap(records) == {}
+
+
+def test_criteria_that_can_be_compared_are_not_reported_as_unusable() -> None:
+    records = [
+        ScoredRecord(
+            record_id="a",
+            judge_score=0.9,
+            human_score=0.7,
+            judge_criteria={"single_issue": 1.0},
+            human_criteria={"single_issue": 0.8},
+        )
+    ]
+    assert not unusable_criteria(records)
+    assert per_criterion_gap(records) == {"single_issue": 0.2}
+
+
+def test_a_sample_scored_only_overall_is_not_reported_as_unusable() -> None:
+    # The normal case. Nothing to warn about when the reviewer scored what is measured.
+    records = [ScoredRecord(record_id="a", judge_score=0.9, human_score=0.7)]
+    assert not unusable_criteria(records)

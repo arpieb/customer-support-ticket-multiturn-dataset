@@ -484,11 +484,16 @@ def sample_for_review(
                 "turns": record["turns"],
                 "coherence_score": record["quality"]["coherence_score"],
                 "rubric_id": record["quality"]["rubric_id"],
-                # Fill these in, then run `ticket-dataset calibrate`. Left explicitly null rather
+                # Fill this in, then run `ticket-dataset calibrate`. Left explicitly null rather
                 # than absent so a partially scored sample is visible rather than silently
                 # measuring a subset.
+                #
+                # `human_criteria` is deliberately not offered. `per_criterion_gap` compares it
+                # against the judge's per-criterion scores, and a record carries only the weighted
+                # mean (FR-009p) — so a reviewer who filled it in would be scoring four criteria
+                # per conversation for a result that is silently discarded. The loader still
+                # accepts the field, for a sample that one day carries the judge's side too.
                 "human_score": None,
-                "human_criteria": {},
             },
             ensure_ascii=False,
         )
@@ -536,6 +541,7 @@ def calibrate_command(
         assert_sample_matches_rubric,
         calibrate,
         load_scored_sample,
+        unusable_criteria,
     )
 
     if not sample.exists():
@@ -544,6 +550,14 @@ def calibrate_command(
     try:
         loaded_rubric = load_rubric(rubric)
         records = load_scored_sample(sample)
+        if unusable_criteria(records):
+            # Say so rather than discard it quietly: scoring per criterion is real effort, and
+            # the reviewer should learn here that nothing consumed it.
+            _note(
+                "note: `human_criteria` was scored but no judge criteria exist to compare it "
+                "against — a record stores only the weighted mean (FR-009p), so the "
+                "per-criterion comparison is skipped. `human_score` is what is measured."
+            )
     except (TicketDatasetError, ValueError, json.JSONDecodeError) as error:
         _note(str(error))
         raise typer.Exit(EXIT_REFUSED) from error

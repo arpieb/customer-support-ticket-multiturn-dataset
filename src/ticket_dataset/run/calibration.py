@@ -204,6 +204,17 @@ def per_criterion_gap(records: Sequence[ScoredRecord]) -> dict[str, float]:
     }
 
 
+def unusable_criteria(records: Sequence[ScoredRecord]) -> bool:
+    """Whether a reviewer scored criteria that nothing can be compared against.
+
+    Scoring per criterion is real work, and with no judge-side criteria to compare it to the
+    result is discarded. Silently is the wrong way to discard it.
+    """
+    return any(record.human_criteria for record in records) and not any(
+        record.judge_criteria for record in records
+    )
+
+
 def calibrate(
     records: Sequence[ScoredRecord],
     *,

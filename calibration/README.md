@@ -18,14 +18,22 @@ uv run ticket-dataset sample-for-review \
   --seed 5 --n 20 --out calibration/sample-001.jsonl
 
 # 2. Read them and fill in `human_score` on every line, 0.0-1.0, same scale as the rubric.
-#    `human_criteria` is optional and only useful if you also have the judge's per-criterion
-#    scores, which records do not carry (FR-009p).
+#    That single number is the whole of the reviewer's job — see the note below before
+#    reaching for anything per-criterion.
 
 # 3. Compare.
 uv run ticket-dataset calibrate calibration/sample-001.jsonl \
   --by "$(git config user.email)" --seed 5 \
   --notes "what you concluded"
 ```
+
+**Score overall, not per criterion.** `calibrate` can compare per-criterion scores, but nothing
+supplies the judge's side of that comparison: a record stores the weighted mean and `rubric_id`,
+not the four criteria behind them (FR-009p). A reviewer who scored each criterion would be doing
+four times the work for a result that is discarded, so `sample-for-review` does not offer the
+field, and `calibrate` says so plainly if it finds one filled in. Making it useful means
+persisting the judge's per-criterion scores onto the record, which is a schema change and has not
+been made.
 
 ## Reading the result
 
