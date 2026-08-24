@@ -290,6 +290,19 @@ Stated here rather than discovered later:
 - **Turn counts are uniform over the configured range**, which produces more long conversations
   than real support traffic contains.
 
+## Releasing a corpus
+
+A run publishing to `data/release/` is not a release. `data/` is outside version control, so what
+the repository keeps is the evidence: the dataset card in `datasheets/`, the calibration record in
+`calibration/`, and — through the card — the run identifier, seed, and output digest that bind a
+corpus to the run that made it.
+
+Releases are manual and go to the Hugging Face Hub. One card per version in `datasheets/`,
+following the [Hub dataset card template](https://huggingface.co/docs/hub/datasets-cards); copy it
+to the Hub repository as its `README.md` and upload the corpus beside it. Nothing in `src/` knows
+the Hub exists, and nothing should teach it — see `datasheets/README.md` for the versioning
+convention.
+
 ## Development
 
 ```bash
