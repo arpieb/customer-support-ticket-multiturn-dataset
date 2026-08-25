@@ -133,6 +133,7 @@ uv run ticket-dataset-generator export-schema --check
 ```
 
 **Expected**: exit `0` when the committed
-[contracts/record.schema.json](./contracts/record.schema.json) matches what the models generate; non-zero
+[`specs/001-ticket-generation-pipeline/contracts/record.schema.json`](../001-ticket-generation-pipeline/contracts/record.schema.json)
+matches what the models generate; non-zero
 when they have drifted, so a breaking change cannot land without showing up as a schema diff in review
 (R1, Principle I).

@@ -96,8 +96,7 @@ specs/001-record-schema-validation/
 │   └── requirements.md  # Spec quality checklist
 ├── contracts/           # Phase 1 output (/speckit-plan command)
 │   ├── python-api.md    # Programmatic contract (the stable surface)
-│   ├── cli.md           # Command-line contract: commands, options, exit statuses
-│   └── record.schema.json  # Generated JSON Schema export of the record contract
+│   └── cli.md           # Command-line contract: commands, options, exit statuses
 └── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
