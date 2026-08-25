@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from ticket_dataset.model.limiter import RateLimiter
+from ticket_dataset_generator.model.limiter import RateLimiter
 
 
 class FakeClock:

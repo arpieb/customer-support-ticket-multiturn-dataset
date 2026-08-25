@@ -1,6 +1,6 @@
 """Duplicate conversations are counted, never removed (FR-034, FR-039)."""
 
-from ticket_dataset.dedup import DuplicateCounter, fingerprint
+from ticket_dataset_generator.dedup import DuplicateCounter, fingerprint
 
 CONVERSATION = [
     {"role": "customer", "content": "My order never arrived."},

@@ -5,8 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.generation.judge import JudgeFailure, Score, meets_threshold, score_response
-from ticket_dataset.generation.rubric import load_rubric
+from ticket_dataset_generator.generation.judge import (
+    JudgeFailure,
+    Score,
+    meets_threshold,
+    score_response,
+)
+from ticket_dataset_generator.generation.rubric import load_rubric
 
 RUBRIC_TEXT = """---
 rubric_id: test-v1

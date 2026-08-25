@@ -16,14 +16,14 @@ from pathlib import Path
 
 import pytest
 
-CLI = [sys.executable, "-m", "ticket_dataset.cli.main"]
+CLI = [sys.executable, "-m", "ticket_dataset_generator.cli.main"]
 
 #: Runs the CLI with the provider client replaced by the fake, so a real generate can be
 #: exercised without a network. sitecustomize is the least invasive hook: no production code
 #: learns about tests.
 STUB = """
-import ticket_dataset.model.litellm_client as real
-from ticket_dataset.model.fake import FakeModelClient
+import ticket_dataset_generator.model.litellm_client as real
+from ticket_dataset_generator.model.fake import FakeModelClient
 
 class _Stub(FakeModelClient):
     def __init__(self, config, **kwargs):

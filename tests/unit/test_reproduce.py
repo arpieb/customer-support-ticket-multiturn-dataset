@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.errors import TicketDatasetError
-from ticket_dataset.run.reproduce import (
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.errors import TicketDatasetError
+from ticket_dataset_generator.run.reproduce import (
     InputStatus,
     check_reproduction,
     config_from_manifest,
@@ -114,7 +114,7 @@ def test_a_serialiser_that_lost_information_would_refuse_to_write(
 ) -> None:
     # The guarantee is that the file describes the recorded run. If it cannot, nothing is handed
     # over — a subtly wrong config is worse than none, because it looks like it worked.
-    import ticket_dataset.run.reproduce as module
+    import ticket_dataset_generator.run.reproduce as module
 
     monkeypatch.setattr(module.tomli_w, "dumps", lambda payload: "record_count = 999\n")
     with pytest.raises(TicketDatasetError, match="did not read back identically"):

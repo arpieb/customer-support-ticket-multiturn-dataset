@@ -2,8 +2,8 @@
 
 import pytest
 
-from ticket_dataset.privacy.masking import mask
-from ticket_dataset.run.enums import PIICategory
+from ticket_dataset_generator.privacy.masking import mask
+from ticket_dataset_generator.run.enums import PIICategory
 
 
 @pytest.mark.parametrize(

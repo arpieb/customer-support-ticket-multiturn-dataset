@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from ticket_dataset.planning.slots import Slot
+from ticket_dataset_generator.planning.slots import Slot
 
 CREATED = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 

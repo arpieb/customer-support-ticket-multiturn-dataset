@@ -3,7 +3,7 @@
 **Feature**: [spec.md](../spec.md) | **Plan**: [plan.md](../plan.md) | **Date**: 2026-08-19
 
 The programmatic surface is the stable contract; the CLI is a wrapper over it. Everything re-exported from
-`ticket_dataset/__init__.py` is public and covered by contract tests. Anything else is internal and may
+`ticket_dataset_generator/__init__.py` is public and covered by contract tests. Anything else is internal and may
 change without a version bump.
 
 ---
@@ -11,7 +11,7 @@ change without a version bump.
 ## Record contract
 
 ```python
-from ticket_dataset import (
+from ticket_dataset_generator import (
     SCHEMA_VERSION,  # "1.0.0"
     TicketRecord,  # Pydantic v2 model — authoritative (Principle I)
     ConversationTurn,
@@ -35,7 +35,7 @@ its output to `contracts/record.schema.json` and fails on drift.
 ## Configuration
 
 ```python
-from ticket_dataset import GenerationConfig, Composition, load_config
+from ticket_dataset_generator import GenerationConfig, Composition, load_config
 
 config = load_config(Path("configs/samples/smoke.toml"))  # raises ConfigError, naming the problem
 ```
@@ -66,7 +66,7 @@ member hide behind well-served ones (FR-031).
 ## Generation
 
 ```python
-from ticket_dataset import GenerationRun, RunResult
+from ticket_dataset_generator import GenerationRun, RunResult
 
 run = GenerationRun(config=config, seed=42, model_client=client)
 result: RunResult = await run.execute()  # or run.resume()
@@ -111,17 +111,17 @@ it is model output and is not reproducible — the record carries both, and only
 ## Model access
 
 ```python
-from ticket_dataset import ModelClient, ModelRole, ModelResponse, FakeModelClient
+from ticket_dataset_generator import ModelClient, ModelRole, ModelResponse, FakeModelClient
 
 # The concrete provider client is imported from its module, not the package root:
-from ticket_dataset.model.litellm_client import LiteLLMModelClient
+from ticket_dataset_generator.model.litellm_client import LiteLLMModelClient
 ```
 
 The protocol in [model-io.md](./model-io.md). `LiteLLMModelClient` is the only module that reaches a
 provider; every other component depends on the protocol, so the pipeline is fully testable offline and a
 provider change is a configuration matter rather than a rewrite (research R1).
 
-It is deliberately **not** re-exported from the package root. Importing `ticket_dataset` would then pull in
+It is deliberately **not** re-exported from the package root. Importing `ticket_dataset_generator` would then pull in
 the provider stack, and a contract test asserts it does not — the offline guarantee is worth more than the
 convenience of a shorter import.
 
@@ -130,7 +130,7 @@ convenience of a shorter import.
 ## Privacy
 
 ```python
-from ticket_dataset import (
+from ticket_dataset_generator import (
     Detector,  # Protocol: name, categories, scan(text) -> list[Match]
     DetectorRegistry,  # register / assert_floor_covered / scan_record
     PIICategory,
@@ -178,7 +178,13 @@ finding format, and the gate are untouched (FR-017).
 ## Manifest and report
 
 ```python
-from ticket_dataset import RunManifest, RunReport, Verdict, DiscardReason, validate_manifest
+from ticket_dataset_generator import (
+    RunManifest,
+    RunReport,
+    Verdict,
+    DiscardReason,
+    validate_manifest,
+)
 
 problems: list[str] = validate_manifest(manifest_dict)  # empty when valid
 ```

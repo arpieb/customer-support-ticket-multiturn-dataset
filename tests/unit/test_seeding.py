@@ -2,7 +2,7 @@
 
 import random
 
-from ticket_dataset.planning.seeding import slot_random
+from ticket_dataset_generator.planning.seeding import slot_random
 
 
 def _draws(rng: random.Random) -> list[float]:

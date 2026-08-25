@@ -5,10 +5,14 @@ import json
 import pytest
 
 from tests.helpers import make_slot
-from ticket_dataset.generation.generator import Candidate, StructuralFailure, validate_response
-from ticket_dataset.model.client import StopReason
-from ticket_dataset.planning.slots import Slot
-from ticket_dataset.run.enums import DiscardReason
+from ticket_dataset_generator.generation.generator import (
+    Candidate,
+    StructuralFailure,
+    validate_response,
+)
+from ticket_dataset_generator.model.client import StopReason
+from ticket_dataset_generator.planning.slots import Slot
+from ticket_dataset_generator.run.enums import DiscardReason
 
 
 def _conversation(turns: list[tuple[str, str]], scenario: str = "a specific situation") -> str:

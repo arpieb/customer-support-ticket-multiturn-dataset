@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpieb/customer-support-ticket-multiturn-dataset/schemas/ticket-record/1.0.0",
+  "$id": "https://github.com/arpieb/ticket-dataset-generator/schemas/ticket-record/1.0.0",
   "title": "TicketRecord",
   "description": "One complete multi-turn customer support interaction. Design-time contract for schema version 1.0.0; the implementation generates this file from the Pydantic model and CI diff-checks it against this committed copy.",
   "type": "object",

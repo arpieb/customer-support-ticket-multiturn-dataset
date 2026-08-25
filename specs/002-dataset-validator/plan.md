@@ -104,7 +104,7 @@ specs/001-record-schema-validation/
 ### Source Code (repository root)
 
 ```text
-src/ticket_dataset/
+src/ticket_dataset_generator/
 ├── __init__.py              # Public API re-exports — the stable surface (FR-029)
 ├── schema/
 │   ├── record.py            # TicketRecord, ConversationTurn, TicketMetadata, Provenance models
@@ -150,7 +150,7 @@ data/
 └── release/                 # Release-path artifacts + manifests (git-ignored)
 ```
 
-**Structure Decision**: Single Python project under `src/ticket_dataset/`, chosen because this feature is
+**Structure Decision**: Single Python project under `src/ticket_dataset_generator/`, chosen because this feature is
 one library with one CLI and no service or frontend boundary. Modules are split by *gate* rather than by
 technical layer, so each of the spec's user stories maps onto one directory — `validation/` for US1,
 `privacy/` for US2, `invariants/` for US3, `manifest/` for US4 — with `report/` and `io/` as the shared

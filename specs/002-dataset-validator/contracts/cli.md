@@ -8,12 +8,12 @@ function, renders the returned `Report`, and exits with its status. **No command
 
 | Command | Calls | Purpose |
 |---------|-------|---------|
-| `ticket-dataset validate <path>` | `validate_records` | Schema conformance (US1) |
-| `ticket-dataset scan <path>` | `scan_privacy` | Privacy scan (US2) |
-| `ticket-dataset invariants <path>` | `check_invariants` | Quality invariants (US3) |
-| `ticket-dataset manifest-check <path>` | `validate_manifest` | Manifest validity (US4) |
-| `ticket-dataset gate <path>` | `run_gate` | Composite release gate (FR-026) |
-| `ticket-dataset export-schema` | `export_json_schema` | Write the JSON Schema export (R1) |
+| `ticket-dataset-generator validate <path>` | `validate_records` | Schema conformance (US1) |
+| `ticket-dataset-generator scan <path>` | `scan_privacy` | Privacy scan (US2) |
+| `ticket-dataset-generator invariants <path>` | `check_invariants` | Quality invariants (US3) |
+| `ticket-dataset-generator manifest-check <path>` | `validate_manifest` | Manifest validity (US4) |
+| `ticket-dataset-generator gate <path>` | `run_gate` | Composite release gate (FR-026) |
+| `ticket-dataset-generator export-schema` | `export_json_schema` | Write the JSON Schema export (R1) |
 
 ## Shared options
 

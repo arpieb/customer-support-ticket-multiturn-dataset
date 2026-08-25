@@ -15,7 +15,7 @@ Details live in the contracts rather than here: [record.schema.json](./contracts
 
 ```bash
 uv sync                       # installs from the committed uv.lock
-uv run ticket-dataset --help
+uv run ticket-dataset-generator --help
 ```
 
 **Credentials.** Generation calls a hosted model through litellm, so which credentials you need depends on
@@ -37,7 +37,7 @@ guarantee (research R7).
 ## Scenario 1 — Generate a small corpus (US1, SC-002)
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42
+uv run ticket-dataset-generator generate --config configs/samples/smoke.toml --seed 42
 ```
 
 `configs/samples/smoke.toml` requests 20 records, so the scenario costs about 40 model calls. It also declares
@@ -64,7 +64,7 @@ print(sorted(c.items()))   # spread across [min, max]; chi-square it at larger N
 wc -l data/release/smoke.jsonl
 uv run python -c "
 import json,sys
-from ticket_dataset import TicketRecord
+from ticket_dataset_generator import TicketRecord
 n=0
 for line in open('data/release/smoke.jsonl'):
     TicketRecord.model_validate_json(line); n+=1
@@ -79,7 +79,7 @@ print(f'{n} records, all conforming')
 Run with the seeded-defect prompt document, which deliberately elicits identifier-shaped content:
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/planted-pii.toml --seed 7
+uv run ticket-dataset-generator generate --config configs/samples/planted-pii.toml --seed 7
 ```
 
 **Expect**: exit `1`, and a report that enumerates the covered identifier types (`EMAIL`, `PHONE`,
@@ -101,11 +101,11 @@ uv run python -m json.tool data/interim/<run_id>/report.json | head -40   # name
 Then approve one finding and confirm it stops blocking while staying visible:
 
 ```bash
-uv run ticket-dataset privacy approve \
+uv run ticket-dataset-generator privacy approve \
   --from-quarantine data/interim/<run_id>/quarantine.jsonl \
   --record-id <id> --field turns[3].content --category EMAIL \
   --reason "synthetic domain, reviewed 2026-08-19" --by "$(git config user.email)"
-uv run ticket-dataset privacy scan data/interim/<run_id>/records.partial.jsonl
+uv run ticket-dataset-generator privacy scan data/interim/<run_id>/records.partial.jsonl
 ```
 
 The `--reason` text is itself scanned and refused if it trips a detector (FR-022b) — try
@@ -131,7 +131,7 @@ is the whole point of probing.
 
 ```bash
 RUN_ID=$(head -1 data/release/smoke.jsonl | uv run python -c "import json,sys; print(json.load(sys.stdin)['run_id'])")
-uv run ticket-dataset validate-manifest "data/release/$RUN_ID.manifest.json"
+uv run ticket-dataset-generator validate-manifest "data/release/$RUN_ID.manifest.json"
 ```
 
 Note what that first line demonstrates: the manifest was found **from a record**, with no other knowledge —
@@ -166,7 +166,7 @@ checksum the manifest records (FR-025b).
 ## Scenario 4 — Composition control (US4, SC-008)
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/billing-heavy.toml --seed 3
+uv run ticket-dataset-generator generate --config configs/samples/billing-heavy.toml --seed 3
 ```
 
 **Expect**: every **member** of every controlled dimension within ±2 percentage points of its request, with
@@ -194,8 +194,8 @@ for dim in m['composition_requested']:
 An unsatisfiable request must refuse with exit `2` and name the offending part — before any model call:
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/bad-composition.toml --seed 1  # proportions sum to 1.4
-uv run ticket-dataset generate --config configs/samples/tight-tolerance.toml --seed 1  # 20 records at 2pp
+uv run ticket-dataset-generator generate --config configs/samples/bad-composition.toml --seed 1  # proportions sum to 1.4
+uv run ticket-dataset-generator generate --config configs/samples/tight-tolerance.toml --seed 1  # 20 records at 2pp
 ```
 
 The second must name both remedies: at least 50 records, or a tolerance of at least 5pp (FR-031b).
@@ -205,7 +205,7 @@ The second must name both remedies: at least 50 records, or a tolerance of at le
 ## Scenario 5 — Interrupt and resume (SC-012, FR-015a–e)
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 &
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11 &
 sleep 30 && kill -INT %1
 ```
 
@@ -217,7 +217,7 @@ threshold mid-run. All three paths take the same route: stop, checkpoint, exit `
 `data/interim/<run_id>/`, both retained because the run did not succeed (FR-015i).
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11 --resume
 ```
 
 **Expect**: exit `0`, with no record regenerated and no `record_id` duplicated. The resume found its
@@ -246,10 +246,10 @@ Two more failure paths:
 
 ```bash
 printf 'garbage' > data/interim/<run_id>/checkpoint.json
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume   # exit 2, staging preserved
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11 --resume   # exit 2, staging preserved
 
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 &          # claims the output path
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11            # exit 2, path claimed
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11 &          # claims the output path
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11            # exit 2, path claimed
 ```
 
 An unreadable checkpoint refuses and leaves the partial output alone — restarting is the operator's explicit
@@ -261,8 +261,8 @@ than at the end, after both runs have paid for their calls (FR-014a).
 ## Scenario 6 — Concurrency does not compromise reproducibility (SC-013)
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42 --out data/release/c1.jsonl    # concurrency 1
-uv run ticket-dataset generate --config configs/samples/smoke16.toml --seed 42 --out data/release/c16.jsonl # concurrency 16
+uv run ticket-dataset-generator generate --config configs/samples/smoke.toml --seed 42 --out data/release/c1.jsonl    # concurrency 1
+uv run ticket-dataset-generator generate --config configs/samples/smoke16.toml --seed 42 --out data/release/c16.jsonl # concurrency 16
 ```
 
 **Expect**: identical composition and identical per-position seeded choices — same assigned metadata, same
@@ -293,7 +293,7 @@ identical draws regardless of call order.
 ## Scenario 7 — Judge calibration (SC-011)
 
 ```bash
-uv run ticket-dataset sample-for-review --corpus data/release/smoke.jsonl --n 20 --seed 5 \
+uv run ticket-dataset-generator sample-for-review --corpus data/release/smoke.jsonl --n 20 --seed 5 \
   --out data/interim/calibration-sample.jsonl
 ```
 

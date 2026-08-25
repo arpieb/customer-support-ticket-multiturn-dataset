@@ -6,7 +6,7 @@ will refuse it.
 A configuration is a TOML file passed to one command:
 
 ```
-uv run ticket-dataset generate --config <file> --seed <n>
+uv run ticket-dataset-generator generate --config <file> --seed <n>
 ```
 
 No other subcommand reads it. `calibrate`, `privacy-scan`, `sample-for-review` and the rest are
@@ -25,7 +25,7 @@ Two rules govern the whole file:
 To see a complete file with every default written out, ask a manifest for one:
 
 ```
-uv run ticket-dataset config-from-manifest data/release/<run_id>.manifest.json
+uv run ticket-dataset-generator config-from-manifest data/release/<run_id>.manifest.json
 ```
 
 ---

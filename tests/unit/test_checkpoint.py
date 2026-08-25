@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.errors import (
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.errors import (
     AmbiguousResumeError,
     CheckpointCorruptError,
     CheckpointMismatchError,
 )
-from ticket_dataset.run.checkpoint import (
+from ticket_dataset_generator.run.checkpoint import (
     CHECKPOINT_NAME,
     Checkpoint,
     find_resumable,

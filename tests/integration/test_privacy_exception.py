@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.errors import ReasonContainsIdentifierError
-from ticket_dataset.model.client import ModelResponse, ModelRole
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
-from ticket_dataset.privacy.exceptions_store import ExceptionStore
-from ticket_dataset.privacy.quarantine import Quarantine
-from ticket_dataset.run.enums import FindingStatus, PIICategory, RunOutcome
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.errors import ReasonContainsIdentifierError
+from ticket_dataset_generator.model.client import ModelResponse, ModelRole
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.privacy.detectors.datafog_detector import DataFogDetector
+from ticket_dataset_generator.privacy.exceptions_store import ExceptionStore
+from ticket_dataset_generator.privacy.quarantine import Quarantine
+from ticket_dataset_generator.run.enums import FindingStatus, PIICategory, RunOutcome
+from ticket_dataset_generator.run.run import GenerationRun
 
 VALUE = "jane.roe@acme-corp.co.uk"
 

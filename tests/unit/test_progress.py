@@ -9,7 +9,7 @@ import io
 
 import pytest
 
-from ticket_dataset.run.progress import Progress, ProgressReporter, render
+from ticket_dataset_generator.run.progress import Progress, ProgressReporter, render
 
 
 def _progress(**overrides) -> Progress:

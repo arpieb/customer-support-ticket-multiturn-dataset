@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from ticket_dataset.privacy.registry import Finding, ScanReport
-from ticket_dataset.run.enums import FindingStatus, PIICategory, RunOutcome, Verdict
-from ticket_dataset.run.report import EXIT_STATUS, RunReport
+from ticket_dataset_generator.privacy.registry import Finding, ScanReport
+from ticket_dataset_generator.run.enums import FindingStatus, PIICategory, RunOutcome, Verdict
+from ticket_dataset_generator.run.report import EXIT_STATUS, RunReport
 
 
 def _report(**overrides) -> RunReport:

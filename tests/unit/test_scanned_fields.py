@@ -5,8 +5,8 @@ prompt document and is deliberately out of scope, so widening the field set late
 a test that says why it was narrow.
 """
 
-from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
-from ticket_dataset.privacy.registry import SCANNED_FIELDS, DetectorRegistry
+from ticket_dataset_generator.privacy.detectors.datafog_detector import DataFogDetector
+from ticket_dataset_generator.privacy.registry import SCANNED_FIELDS, DetectorRegistry
 
 REAL_LOOKING = "jane.roe@acme-corp.co.uk"
 

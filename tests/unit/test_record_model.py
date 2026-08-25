@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from ticket_dataset.schema.record import TicketRecord
+from ticket_dataset_generator.schema.record import TicketRecord
 
 CREATED = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 

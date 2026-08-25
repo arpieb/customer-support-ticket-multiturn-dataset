@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.defaults import DEFAULT_PROMPT_DOCUMENT
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.client import ModelRole
-from ticket_dataset.model.fake import FakeModelClient, Script
-from ticket_dataset.run.enums import DiscardReason, RunOutcome
-from ticket_dataset.run.run import GenerationRun
-from ticket_dataset.schema.record import TicketRecord
+from ticket_dataset_generator.config.defaults import DEFAULT_PROMPT_DOCUMENT
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.client import ModelRole
+from ticket_dataset_generator.model.fake import FakeModelClient, Script
+from ticket_dataset_generator.run.enums import DiscardReason, RunOutcome
+from ticket_dataset_generator.run.run import GenerationRun
+from ticket_dataset_generator.schema.record import TicketRecord
 
 RECORDS = 40
 
@@ -88,7 +88,7 @@ async def test_turn_counts_stay_inside_the_configured_range(
 
 
 async def test_records_carry_their_provenance(tmp_path: Path, staging_root: Path) -> None:
-    from ticket_dataset.generation.rubric import load_rubric
+    from ticket_dataset_generator.generation.rubric import load_rubric
 
     expected_rubric_id = load_rubric(Path("prompts/coherence-rubric.md")).rubric_id
     result = await _run(make_config(tmp_path))
@@ -126,8 +126,8 @@ async def test_publishing_refuses_without_the_gate(tmp_path: Path, staging_root:
     # The structural form of the blocking-scan requirement: there is no other route to the
     # release path, and this one cannot be taken unless the floor was demonstrated
     # (Constitution IV, FR-016, FR-018a).
-    from ticket_dataset.errors import ReleaseGateError
-    from ticket_dataset.run.writer import publish
+    from ticket_dataset_generator.errors import ReleaseGateError
+    from ticket_dataset_generator.run.writer import publish
 
     staging = tmp_path / "staging.jsonl"
     staging.write_text("{}\n")
@@ -206,7 +206,7 @@ async def test_a_discarded_slot_does_not_block_later_records(
     calls = {"n": 0}
 
     def responder(role, system, user):
-        from ticket_dataset.model.client import ModelResponse
+        from ticket_dataset_generator.model.client import ModelResponse
 
         if role is ModelRole.JUDGE:
             return ModelResponse(

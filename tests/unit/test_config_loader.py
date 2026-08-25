@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.loader import load_config, validate_config
-from ticket_dataset.errors import ConfigError
+from ticket_dataset_generator.config.loader import load_config, validate_config
+from ticket_dataset_generator.errors import ConfigError
 
 
 def _payload(**overrides) -> dict:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.run import run as run_module
+from ticket_dataset_generator.run import run as run_module
 
 
 @pytest.fixture

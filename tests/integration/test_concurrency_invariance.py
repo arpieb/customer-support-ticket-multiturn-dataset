@@ -9,9 +9,9 @@ this test would fail intermittently.
 import json
 from pathlib import Path
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.run import GenerationRun
 
 SEED = 42
 RECORDS = 40

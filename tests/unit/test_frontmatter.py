@@ -7,7 +7,7 @@ the control the privacy assumption actually rests on.
 
 from pathlib import Path
 
-from ticket_dataset.generation.frontmatter import (
+from ticket_dataset_generator.generation.frontmatter import (
     parse_front_matter,
     read_document,
     split_front_matter,

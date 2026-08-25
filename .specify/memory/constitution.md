@@ -1,4 +1,24 @@
 <!--
+Sync Impact Report — 1.1.1 (2026-08-25)
+=======================================
+Version change: 1.1.0 → 1.1.1
+Bump rationale: PATCH — wording only. The project was renamed; this document's title follows it.
+No principle was added, removed, or redefined, and no obligation changed.
+
+Modified sections:
+  Title: "Customer Support Ticket Multi-Turn Dataset Constitution" → "Ticket Dataset Generator
+  Constitution"
+
+What changed and why: the repository name was the last artifact still describing this project as a
+customer-support dataset rather than a domain-agnostic generator, which is what the 1.1.0 amendment
+already established it to be. Renaming the constitution's title keeps governance consistent with
+the thing it governs.
+
+Templates updated in this change: none required. The propagation rule in Governance applies to
+amendments that change obligations; this one changes none.
+
+Superseded report (1.1.0)
+=========================
 Sync Impact Report — 1.1.0 (2026-08-24)
 =======================================
 Version change: 1.0.0 → 1.1.0
@@ -55,7 +75,7 @@ Templates requiring updates:
 Follow-up TODOs: none
 -->
 
-# Customer Support Ticket Multi-Turn Dataset Constitution
+# Ticket Dataset Generator Constitution
 
 ## Core Principles
 
@@ -179,4 +199,4 @@ completed, that validation gates ran, and that any complexity is justified rathe
 Runtime development guidance for coding agents lives in `CLAUDE.md` and in the active feature plan;
 those documents elaborate on this constitution but never override it.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-18 | **Last Amended**: 2026-08-24
+**Version**: 1.1.1 | **Ratified**: 2026-08-18 | **Last Amended**: 2026-08-25

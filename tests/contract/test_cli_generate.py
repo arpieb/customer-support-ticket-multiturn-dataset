@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-CLI = [sys.executable, "-m", "ticket_dataset.cli.main"]
+CLI = [sys.executable, "-m", "ticket_dataset_generator.cli.main"]
 
 
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
@@ -80,7 +80,7 @@ def test_dry_run_plans_without_calling_a_model() -> None:
     plan = json.loads(result.stdout)
     assert plan["slots"] == 20
     assert plan["model_calls_estimated"] == 40
-    from ticket_dataset.generation.rubric import load_rubric
+    from ticket_dataset_generator.generation.rubric import load_rubric
 
     assert plan["rubric_id"] == load_rubric(Path("prompts/coherence-rubric.md")).rubric_id
 

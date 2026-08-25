@@ -149,7 +149,7 @@ specs/001-ticket-generation-pipeline/
 ### Source Code (repository root)
 
 ```text
-src/ticket_dataset/
+src/ticket_dataset_generator/
 ├── __init__.py               # Public API re-exports — the stable surface
 ├── errors.py                 # TicketDatasetError hierarchy; no exception may carry a matched PII value
 ├── schema/
@@ -240,7 +240,7 @@ data/
 └── release/                  # Completed artifacts, manifests, reports
 ```
 
-**Structure Decision**: Single Python project (`src/ticket_dataset/` + `tests/`), extending the package the
+**Structure Decision**: Single Python project (`src/ticket_dataset_generator/` + `tests/`), extending the package the
 superseded feature planned rather than starting a second one — the record schema, privacy gate, and
 manifest moved into this feature, so one package now owns the whole release path. Subpackages follow the
 pipeline's stages so the dependency direction is visible: `schema` and `config` depend on nothing;

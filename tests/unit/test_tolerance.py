@@ -1,6 +1,6 @@
 """Per-member tolerance, and why it is not an aggregate (FR-031, FR-031a)."""
 
-from ticket_dataset.planning.tolerance import attribute, check
+from ticket_dataset_generator.planning.tolerance import attribute, check
 
 REQUESTED = {
     "category": {

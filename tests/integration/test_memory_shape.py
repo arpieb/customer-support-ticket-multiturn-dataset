@@ -15,10 +15,10 @@ import json
 import tracemalloc
 from pathlib import Path
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.enums import RunOutcome
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.enums import RunOutcome
+from ticket_dataset_generator.run.run import GenerationRun
 
 
 def _config(tmp_path: Path, records: int) -> GenerationConfig:

@@ -24,8 +24,8 @@ def _written_manifest() -> dict:
     """A manifest as the code actually writes one."""
     from datetime import UTC, datetime
 
-    from ticket_dataset.run.manifest import ModelRecord, RunManifest, Segment
-    from ticket_dataset.run.revision import CodeRevision
+    from ticket_dataset_generator.run.manifest import ModelRecord, RunManifest, Segment
+    from ticket_dataset_generator.run.revision import CodeRevision
 
     now = datetime(2026, 3, 1, tzinfo=UTC)
     model = ModelRecord(
@@ -85,7 +85,7 @@ def test_every_key_written_is_declared_in_the_contract(contract: dict) -> None:
 
 
 def test_the_discard_reasons_agree(contract: dict) -> None:
-    from ticket_dataset.run.enums import DiscardReason
+    from ticket_dataset_generator.run.enums import DiscardReason
 
     declared = set(contract["$defs"]["DiscardAccount"]["properties"]["reason"]["enum"])
     implemented = {reason.value for reason in DiscardReason}

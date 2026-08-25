@@ -13,7 +13,7 @@ calibration for the rubric its corpus was actually judged against.
 ```bash
 # 1. Draw a reproducible sample. Any JSONL of records works, including a staging file from a
 #    run that failed its thresholds — the records it wrote are still real judge output.
-uv run ticket-dataset sample-for-review \
+uv run ticket-dataset-generator sample-for-review \
   --corpus data/release/my-corpus.jsonl \
   --seed 5 --n 20 --out calibration/sample-001.jsonl
 
@@ -22,7 +22,7 @@ uv run ticket-dataset sample-for-review \
 #    reaching for anything per-criterion.
 
 # 3. Compare.
-uv run ticket-dataset calibrate calibration/sample-001.jsonl \
+uv run ticket-dataset-generator calibrate calibration/sample-001.jsonl \
   --by "$(git config user.email)" --seed 5 \
   --notes "what you concluded"
 ```

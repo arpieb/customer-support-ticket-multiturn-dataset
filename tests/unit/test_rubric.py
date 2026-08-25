@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.errors import RubricError
-from ticket_dataset.generation.rubric import load_rubric
+from ticket_dataset_generator.errors import RubricError
+from ticket_dataset_generator.generation.rubric import load_rubric
 
 VALID = """---
 rubric_id: test-v1

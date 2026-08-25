@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.schema.export import (
+from ticket_dataset_generator.schema.export import (
     SCHEMA_ID,
     export_json_schema,
     load_committed_schema,
     structural_form,
 )
-from ticket_dataset.schema.version import SCHEMA_VERSION
+from ticket_dataset_generator.schema.version import SCHEMA_VERSION
 
 CONTRACT_PATH = Path("specs/001-ticket-generation-pipeline/contracts/record.schema.json")
 

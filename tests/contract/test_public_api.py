@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-import ticket_dataset
+import ticket_dataset_generator
 
 #: Names the contract document specifies. Kept here deliberately rather than derived from
 #: ``__all__``, so the test compares the code against the document rather than against itself.
@@ -88,20 +88,20 @@ DOCUMENTED = {
 
 
 def test_every_documented_name_is_exported() -> None:
-    missing = sorted(DOCUMENTED - set(ticket_dataset.__all__))
+    missing = sorted(DOCUMENTED - set(ticket_dataset_generator.__all__))
     assert missing == [], f"documented but not exported: {missing}"
 
 
 def test_nothing_undocumented_is_exported() -> None:
     # An import added for convenience must not quietly become part of the contract.
-    extra = sorted(set(ticket_dataset.__all__) - DOCUMENTED)
+    extra = sorted(set(ticket_dataset_generator.__all__) - DOCUMENTED)
     assert extra == [], f"exported but not documented: {extra}"
 
 
 @pytest.mark.parametrize("name", sorted(DOCUMENTED))
 def test_every_exported_name_is_importable(name: str) -> None:
-    assert hasattr(ticket_dataset, name), name
-    assert getattr(ticket_dataset, name) is not None
+    assert hasattr(ticket_dataset_generator, name), name
+    assert getattr(ticket_dataset_generator, name) is not None
 
 
 def test_the_public_api_does_not_import_a_provider_stack() -> None:
@@ -116,7 +116,7 @@ def test_the_public_api_does_not_import_a_provider_stack() -> None:
         [
             sys.executable,
             "-c",
-            "import sys, ticket_dataset; "
+            "import sys, ticket_dataset_generator; "
             "print(any(m == 'litellm' or m.startswith('litellm.') for m in sys.modules))",
         ],
         capture_output=True,
@@ -125,10 +125,10 @@ def test_the_public_api_does_not_import_a_provider_stack() -> None:
         check=True,
     )
     assert result.stdout.strip() == "False", (
-        "importing ticket_dataset pulled in the provider stack; the ModelClient seam exists "
-        "so the package can be used and tested without it"
+        "importing ticket_dataset_generator pulled in the provider stack; the ModelClient "
+        "seam exists so the package can be used and tested without it"
     )
 
 
 def test_the_schema_version_is_the_one_the_contract_declares() -> None:
-    assert ticket_dataset.SCHEMA_VERSION == "1.0.0"
+    assert ticket_dataset_generator.SCHEMA_VERSION == "1.0.0"

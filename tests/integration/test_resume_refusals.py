@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.errors import CheckpointCorruptError, CheckpointMismatchError
-from ticket_dataset.model.client import ModelResponse, ModelRole, ModelUnavailable
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.checkpoint import CHECKPOINT_NAME
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.errors import CheckpointCorruptError, CheckpointMismatchError
+from ticket_dataset_generator.model.client import ModelResponse, ModelRole, ModelUnavailable
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.checkpoint import CHECKPOINT_NAME
+from ticket_dataset_generator.run.run import GenerationRun
 
 
 def _prompts(tmp_path: Path) -> tuple[Path, Path]:
