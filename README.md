@@ -161,8 +161,10 @@ Two things commonly surprise people, and both refuse **before** any model call r
   and names both remedies — a larger corpus, or a wider tolerance.
   `configs/samples/smoke.toml` widens it to 10pp for exactly this reason.
 
-See `configs/samples/` for worked examples, and
-[the feature specification](specs/001-ticket-generation-pipeline/spec.md) for every setting.
+**[The configuration reference](docs/configuration.md) documents every setting** — type,
+default, and the constraint that will refuse it. See `configs/samples/` for worked examples, and
+[the feature specification](specs/001-ticket-generation-pipeline/spec.md) for the requirements
+behind them.
 
 Those samples are tracked; anything else under `configs/` is ignored by git. Put your own configs
 there — they tend to carry a host address or a model only you can reach, which is nobody else's
