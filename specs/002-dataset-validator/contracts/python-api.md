@@ -4,7 +4,7 @@
 than shelling out, so it is the surface that must stay stable. The CLI is a wrapper over exactly these
 calls and adds no behavior of its own (FR-032).
 
-All names below are re-exported from `ticket_dataset`.
+All names below are re-exported from `ticket_dataset_generator`.
 
 ---
 

@@ -2,11 +2,11 @@
 
 import pytest
 
-from ticket_dataset.errors import FloorNotCoveredError
-from ticket_dataset.privacy.canaries import FLOOR_CANARIES, NEGATIVE_CANARIES
-from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
-from ticket_dataset.privacy.registry import DetectorError, DetectorRegistry, Match
-from ticket_dataset.run.enums import BLOCKING_FLOOR, FindingStatus, PIICategory
+from ticket_dataset_generator.errors import FloorNotCoveredError
+from ticket_dataset_generator.privacy.canaries import FLOOR_CANARIES, NEGATIVE_CANARIES
+from ticket_dataset_generator.privacy.detectors.datafog_detector import DataFogDetector
+from ticket_dataset_generator.privacy.registry import DetectorError, DetectorRegistry, Match
+from ticket_dataset_generator.run.enums import BLOCKING_FLOOR, FindingStatus, PIICategory
 
 
 class StubDetector:

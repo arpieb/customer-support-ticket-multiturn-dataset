@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.run.manifest import (
+from ticket_dataset_generator.run.manifest import (
     MANIFEST_VERSION,
     score_histogram,
     validate_manifest,

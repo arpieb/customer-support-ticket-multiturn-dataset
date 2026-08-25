@@ -296,8 +296,8 @@ trust, which claims not to draw, what to do instead. }}
 
 The manifest and run report for this corpus are the authoritative provenance record: they carry
 the full resolved configuration, input hashes, code revision, and the complete filter accounting.
-`ticket-dataset config-from-manifest` recovers the exact configuration from the manifest, and
-`ticket-dataset generate --from-manifest` reproduces the run, refusing if any recorded input has
+`ticket-dataset-generator config-from-manifest` recovers the exact configuration from the manifest, and
+`ticket-dataset-generator generate --from-manifest` reproduces the run, refusing if any recorded input has
 since changed.
 
 ## Dataset Card Authors [optional]

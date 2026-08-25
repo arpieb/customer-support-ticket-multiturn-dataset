@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.planning.slots import assign_subdomains, plan_slots
-from ticket_dataset.schema.enums import COMPOSITION_DIMENSIONS, ResolutionStatus
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.planning.slots import assign_subdomains, plan_slots
+from ticket_dataset_generator.schema.enums import COMPOSITION_DIMENSIONS, ResolutionStatus
 
 SUBDOMAINS = ["billing-dispute", "login-issue", "refund", "shipping-delay"]
 
@@ -119,8 +119,8 @@ def test_an_empty_subdomain_list_is_refused() -> None:
 
 _PROBE = """
 from pathlib import Path
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.planning.slots import plan_slots
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.planning.slots import plan_slots
 config = GenerationConfig(
     record_count=40,
     output_path=Path("data/release/x.jsonl"),

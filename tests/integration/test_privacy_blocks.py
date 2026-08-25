@@ -3,11 +3,11 @@
 import json
 from pathlib import Path
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.client import ModelResponse, ModelRole
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.enums import DiscardReason, FindingStatus, RunOutcome
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.client import ModelResponse, ModelRole
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.enums import DiscardReason, FindingStatus, RunOutcome
+from ticket_dataset_generator.run.run import GenerationRun
 
 REAL_LOOKING_EMAIL = "jane.roe@acme-corp.co.uk"
 FICTION_EMAIL = "j.doe@example.com"

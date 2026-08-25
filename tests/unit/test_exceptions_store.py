@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.errors import ReasonContainsIdentifierError
-from ticket_dataset.privacy.exceptions_store import ExceptionStore, fingerprint
-from ticket_dataset.run.enums import PIICategory
+from ticket_dataset_generator.errors import ReasonContainsIdentifierError
+from ticket_dataset_generator.privacy.exceptions_store import ExceptionStore, fingerprint
+from ticket_dataset_generator.run.enums import PIICategory
 
 VALUE = "Jane.Roe@Acme-Corp.co.uk"
 

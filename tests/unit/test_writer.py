@@ -5,8 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.errors import OutputPathExistsError
-from ticket_dataset.run.writer import OrderedWriter, claim_destination, serialize, verify_claim
+from ticket_dataset_generator.errors import OutputPathExistsError
+from ticket_dataset_generator.run.writer import (
+    OrderedWriter,
+    claim_destination,
+    serialize,
+    verify_claim,
+)
 
 
 def _record(position: int) -> dict:

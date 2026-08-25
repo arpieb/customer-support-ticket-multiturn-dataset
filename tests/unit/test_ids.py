@@ -2,7 +2,7 @@
 
 import pytest
 
-from ticket_dataset.run.ids import new_run_id, record_id
+from ticket_dataset_generator.run.ids import new_run_id, record_id
 
 
 def test_each_run_gets_a_fresh_identifier() -> None:

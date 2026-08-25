@@ -2,8 +2,8 @@
 
 import pytest
 
-from ticket_dataset.privacy.registry import DetectorError, DetectorRegistry, Match
-from ticket_dataset.run.enums import BLOCKING_FLOOR, DiscardReason
+from ticket_dataset_generator.privacy.registry import DetectorError, DetectorRegistry, Match
+from ticket_dataset_generator.run.enums import BLOCKING_FLOOR, DiscardReason
 
 
 class ExplodingDetector:

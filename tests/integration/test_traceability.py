@@ -3,11 +3,11 @@
 import json
 from pathlib import Path
 
-from ticket_dataset.config.defaults import DEFAULT_PROMPT_DOCUMENT
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.manifest import validate_manifest_file
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.defaults import DEFAULT_PROMPT_DOCUMENT
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.manifest import validate_manifest_file
+from ticket_dataset_generator.run.run import GenerationRun
 
 
 def _config(tmp_path: Path) -> GenerationConfig:

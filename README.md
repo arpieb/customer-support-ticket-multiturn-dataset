@@ -1,8 +1,8 @@
-# Customer Support Ticket Multi-Turn Dataset
+# Ticket Dataset Generator
 
-A reproducible generator for multi-turn customer support conversations: synthetic ticket records
-with conversation turns, ticket metadata, and the provenance needed to audit how any corpus was
-produced.
+A reproducible generator for multi-turn support ticket datasets in any domain: synthetic ticket
+records with conversation turns, ticket metadata, and the provenance needed to audit how any
+corpus was produced.
 
 **The tool is the deliverable, not any particular dataset.** You supply a domain prompt document
 declaring its own subdomains, and a run produces a corpus for that domain. The consumer-electronics
@@ -22,7 +22,7 @@ generator produces.
 
 ```bash
 uv sync
-uv run ticket-dataset --help
+uv run ticket-dataset-generator --help
 ```
 
 Python 3.14 or later. Dependencies are managed with `uv`; `uv.lock` is committed and updated in
@@ -97,7 +97,7 @@ the release path never depends on a remote service.
 `configs/samples/smoke.toml` asks for 20 records — about 40 model calls.
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42
+uv run ticket-dataset-generator generate --config configs/samples/smoke.toml --seed 42
 ```
 
 It reports progress as it goes — records completed, elapsed time, rate, and an estimate — so a
@@ -113,7 +113,7 @@ Progress goes to stderr; stdout carries only the machine-readable report, so pip
 Check what it would do first, without spending anything:
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/smoke.toml --seed 42 --dry-run
+uv run ticket-dataset-generator generate --config configs/samples/smoke.toml --seed 42 --dry-run
 ```
 
 On success you get three files in `data/release/`:
@@ -202,7 +202,7 @@ discard rate breached its threshold — the partial corpus and its checkpoint st
 `data/interim/<run_id>/`, and nothing appears in `data/release/`.
 
 ```bash
-uv run ticket-dataset generate --config configs/samples/medium.toml --seed 11 --resume
+uv run ticket-dataset-generator generate --config configs/samples/medium.toml --seed 11 --resume
 ```
 
 Resuming refuses if the configuration, seed, prompt document, or rubric changed since the
@@ -216,7 +216,7 @@ A manifest records everything its run consumed, so nothing needs transcribing by
 run exactly:
 
 ```bash
-uv run ticket-dataset generate \
+uv run ticket-dataset-generator generate \
   --from-manifest data/release/<run_id>.manifest.json \
   --out data/release/repeat.jsonl
 ```
@@ -241,7 +241,7 @@ ones — which is a new corpus, and says so.
 To get the configuration as a file instead — to read it, or to derive a new run from it:
 
 ```bash
-uv run ticket-dataset config-from-manifest \
+uv run ticket-dataset-generator config-from-manifest \
   data/release/<run_id>.manifest.json --out configs/rerun.toml
 ```
 
@@ -255,7 +255,7 @@ The scan runs on every structurally valid response, before it is judged, and blo
 carrying an unreviewed finding.
 
 ```bash
-uv run ticket-dataset privacy scan data/release/my-corpus.jsonl
+uv run ticket-dataset-generator privacy scan data/release/my-corpus.jsonl
 ```
 
 Findings never reproduce the matched value. They carry a masked rendering — the domain of an email,
@@ -268,7 +268,7 @@ For anything a mask cannot settle, blocked records are quarantined under `data/i
 and can be approved in place:
 
 ```bash
-uv run ticket-dataset privacy approve \
+uv run ticket-dataset-generator privacy approve \
   --from-quarantine data/interim/<run_id>/quarantine.jsonl \
   --record-id <id> --field 'turns[3].content' \
   --category EMAIL --reason "vendor sandbox address" --by "$(git config user.email)"
@@ -286,7 +286,7 @@ Stated here rather than discovered later:
   report restates. The corpus is synthetic by construction; the scan is a safety net confirming
   that held, not the primary control.
 - **The coherence threshold is a default, not a validated one.** Nothing obliges a calibration to
-  happen or a release to cite one. `sample-for-review` and `ticket-dataset calibrate` make the
+  happen or a release to cite one. `sample-for-review` and `ticket-dataset-generator calibrate` make the
   comparison cheap and leave a committed record under `calibration/`, but running them is a
   choice. See `calibration/README.md`.
 - **A judge can score generously without anyone noticing.** Rubric v1 offered three anchors per
@@ -322,11 +322,11 @@ uv run ruff format .
 ```
 
 The entire pipeline is exercised against a scripted fake model, so the suite is free, fast, and
-deterministic. `src/ticket_dataset/model/litellm_client.py` is the only module that reaches a
+deterministic. `src/ticket_dataset_generator/model/litellm_client.py` is the only module that reaches a
 provider; nothing under `tests/` imports it, and a contract test asserts that importing the
 package does not pull the provider stack in.
 
-The record contract is the Pydantic model in `src/ticket_dataset/schema/record.py`; it exports
+The record contract is the Pydantic model in `src/ticket_dataset_generator/schema/record.py`; it exports
 [`contracts/record.schema.json`](specs/001-ticket-generation-pipeline/contracts/record.schema.json)
 and a contract test fails on any drift, so a schema change cannot land without the published
 contract changing in the same commit.

@@ -21,7 +21,7 @@ contributor with no assistance, which is what SC-009 measures. Field-level detai
 
 ```bash
 uv sync                       # installs pydantic, datafog (core, no extras), typer, pytest
-uv run ticket-dataset --help  # confirms the CLI entry point resolves
+uv run ticket-dataset-generator --help  # confirms the CLI entry point resolves
 ```
 
 The `datafog` install must be the **core** install — no extras. If `spacy` or `torch` appear in
@@ -30,7 +30,7 @@ The `datafog` install must be the **core** install — no extras. If `spacy` or 
 ## Scenario 1 — A clean artifact passes (US1)
 
 ```bash
-uv run ticket-dataset validate tests/fixtures/clean.jsonl
+uv run ticket-dataset-generator validate tests/fixtures/clean.jsonl
 ```
 
 **Expected**: verdict `pass`, a reported count of records examined that matches the fixture's line count,
@@ -39,7 +39,7 @@ the schema version validated against, and exit status `0`.
 ## Scenario 2 — Malformed records are reported individually (US1)
 
 ```bash
-uv run ticket-dataset validate tests/fixtures/defects/schema_violations.jsonl
+uv run ticket-dataset-generator validate tests/fixtures/defects/schema_violations.jsonl
 ```
 
 **Expected**: verdict `fail` and exit status `1`. Every planted defect appears as its own finding naming
@@ -49,7 +49,7 @@ instead, and the run continues past it rather than stopping (FR-008, FR-009).
 ## Scenario 3 — The privacy scan blocks a release (US2)
 
 ```bash
-uv run ticket-dataset scan tests/fixtures/defects/pii_planted.jsonl
+uv run ticket-dataset-generator scan tests/fixtures/defects/pii_planted.jsonl
 ```
 
 **Expected**: verdict `fail`, exit status `1`, one finding per planted identifier with its record ID,
@@ -63,7 +63,7 @@ locations and categories (R4). This is what makes the output safe to paste into 
 ## Scenario 4 — An approved exception unblocks without hiding (US2)
 
 ```bash
-uv run ticket-dataset scan tests/fixtures/defects/pii_planted.jsonl \
+uv run ticket-dataset-generator scan tests/fixtures/defects/pii_planted.jsonl \
   --exceptions tests/fixtures/exceptions/approved.json
 ```
 
@@ -74,7 +74,7 @@ fingerprints, never raw values — open it and confirm.
 ## Scenario 5 — Invariant violations are caught in one pass (US3)
 
 ```bash
-uv run ticket-dataset invariants tests/fixtures/defects/invariant_violations.jsonl
+uv run ticket-dataset-generator invariants tests/fixtures/defects/invariant_violations.jsonl
 ```
 
 **Expected**: verdict `fail`; one finding per planted violation — out-of-order turns, consecutive
@@ -84,8 +84,8 @@ duplicate record IDs reported distinctly from duplicate content. All appear in a
 ## Scenario 6 — A manifest reconciles (US4)
 
 ```bash
-uv run ticket-dataset manifest-check tests/fixtures/manifests/valid.json
-uv run ticket-dataset manifest-check tests/fixtures/manifests/unbalanced.json
+uv run ticket-dataset-generator manifest-check tests/fixtures/manifests/valid.json
+uv run ticket-dataset-generator manifest-check tests/fixtures/manifests/unbalanced.json
 ```
 
 **Expected**: the first passes. The second fails, naming the discrepancy — its removal counts do not
@@ -95,7 +95,7 @@ reconcile input to output (FR-023). A manifest missing a required element names 
 ## Scenario 7 — The composite release gate (FR-026)
 
 ```bash
-uv run ticket-dataset gate tests/fixtures/clean.jsonl \
+uv run ticket-dataset-generator gate tests/fixtures/clean.jsonl \
   --manifest tests/fixtures/manifests/valid.json --format json
 ```
 
@@ -106,7 +106,7 @@ contract — automation reads it rather than parsing prose (FR-011).
 Then confirm the gate fails closed on an empty artifact:
 
 ```bash
-uv run ticket-dataset gate tests/fixtures/empty.jsonl   # expect verdict fail, exit 1 (FR-027)
+uv run ticket-dataset-generator gate tests/fixtures/empty.jsonl   # expect verdict fail, exit 1 (FR-027)
 ```
 
 ## Scenario 8 — Floor coverage fails closed (FR-013d)
@@ -129,7 +129,7 @@ uv run pytest tests/contract       # public API and CLI contracts only
 ## Checking schema-export drift
 
 ```bash
-uv run ticket-dataset export-schema --check
+uv run ticket-dataset-generator export-schema --check
 ```
 
 **Expected**: exit `0` when the committed

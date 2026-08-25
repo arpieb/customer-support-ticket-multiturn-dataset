@@ -11,23 +11,23 @@ from pathlib import Path
 import pytest
 
 from tests.helpers import make_slot
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.generation.domain_doc import load_domain_document
-from ticket_dataset.generation.pipeline import (
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.generation.domain_doc import load_domain_document
+from ticket_dataset_generator.generation.pipeline import (
     PipelineStats,
     RunStopped,
     SlotOutcome,
     run_slots,
 )
-from ticket_dataset.generation.prompts import (
+from ticket_dataset_generator.generation.prompts import (
     generator_system_prompt,
     generator_user_prompt,
     judge_system_prompt,
     judge_user_prompt,
 )
-from ticket_dataset.generation.rubric import load_rubric
-from ticket_dataset.model.wire import GeneratedConversation, JudgeVerdict, response_schema
-from ticket_dataset.run.enums import DiscardReason
+from ticket_dataset_generator.generation.rubric import load_rubric
+from ticket_dataset_generator.model.wire import GeneratedConversation, JudgeVerdict, response_schema
+from ticket_dataset_generator.run.enums import DiscardReason
 
 
 @pytest.fixture(scope="module")
@@ -231,9 +231,9 @@ def test_a_model_that_cannot_be_constrained_refuses_the_run(tmp_path) -> None:
     Discovering that after paying for a corpus is the wrong moment, so it is checked beside the
     detector floor — before the first call rather than after the last one.
     """
-    from ticket_dataset.errors import ConfigError
-    from ticket_dataset.model.fake import FakeModelClient
-    from ticket_dataset.run.run import GenerationRun
+    from ticket_dataset_generator.errors import ConfigError
+    from ticket_dataset_generator.model.fake import FakeModelClient
+    from ticket_dataset_generator.run.run import GenerationRun
 
     class PickyClient(FakeModelClient):
         @staticmethod
@@ -252,8 +252,8 @@ def test_a_model_that_cannot_be_constrained_refuses_the_run(tmp_path) -> None:
 
 def test_a_client_that_does_not_advertise_capability_is_not_second_guessed(tmp_path) -> None:
     # The fake has no opinion about schemas; the check must not invent one for it.
-    from ticket_dataset.model.fake import FakeModelClient
-    from ticket_dataset.run.run import GenerationRun
+    from ticket_dataset_generator.model.fake import FakeModelClient
+    from ticket_dataset_generator.run.run import GenerationRun
 
     config = GenerationConfig(record_count=60, output_path=tmp_path / "release" / "corpus.jsonl")
     slots = GenerationRun(config=config, seed=1, model_client=FakeModelClient()).prepare()
@@ -268,8 +268,8 @@ def test_a_model_unknown_to_the_provider_layer_is_not_refused(tmp_path) -> None:
     unknown would make this gate a check on metadata completeness rather than on the model, and
     would lock out exactly the providers a vendor-neutral design exists to allow.
     """
-    from ticket_dataset.model.fake import FakeModelClient
-    from ticket_dataset.run.run import GenerationRun
+    from ticket_dataset_generator.model.fake import FakeModelClient
+    from ticket_dataset_generator.run.run import GenerationRun
 
     class UnknownCapability(FakeModelClient):
         @staticmethod
@@ -290,7 +290,7 @@ def test_a_model_unknown_to_the_provider_layer_is_not_refused(tmp_path) -> None:
 
 def test_the_real_client_reports_three_answers() -> None:
     """True, False, and unknown — collapsing the last two is what caused the bug."""
-    from ticket_dataset.model.litellm_client import LiteLLMModelClient
+    from ticket_dataset_generator.model.litellm_client import LiteLLMModelClient
 
     assert LiteLLMModelClient.supports_structured_output("anthropic/claude-opus-4-5") is True
     assert LiteLLMModelClient.supports_structured_output("azure/gpt-audio-2025-08-28") is False

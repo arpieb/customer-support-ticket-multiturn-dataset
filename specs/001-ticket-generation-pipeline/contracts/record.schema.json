@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpieb/customer-support-ticket-multiturn-dataset/schemas/record/1.0.0",
+  "$id": "https://github.com/arpieb/ticket-dataset-generator/schemas/record/1.0.0",
   "title": "TicketRecord",
-  "description": "One multi-turn customer support interaction. Schema version 1.0.0. This file is the committed contract (Constitution Principle I); the Pydantic model in src/ticket_dataset/schema/record.py is authoritative and exports this file, and a CI check fails if the two drift.",
+  "description": "One multi-turn customer support interaction. Schema version 1.0.0. This file is the committed contract (Constitution Principle I); the Pydantic model in src/ticket_dataset_generator/schema/record.py is authoritative and exports this file, and a CI check fails if the two drift.",
   "type": "object",
   "additionalProperties": false,
   "required": [

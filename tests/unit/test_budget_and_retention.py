@@ -3,10 +3,10 @@
 from datetime import timedelta
 from pathlib import Path
 
-from ticket_dataset.config.models import Budget
-from ticket_dataset.run.budget import BudgetTracker
-from ticket_dataset.run.checkpoint import CHECKPOINT_NAME
-from ticket_dataset.run.retention import clean_after_success, retained_after_failure
+from ticket_dataset_generator.config.models import Budget
+from ticket_dataset_generator.run.budget import BudgetTracker
+from ticket_dataset_generator.run.checkpoint import CHECKPOINT_NAME
+from ticket_dataset_generator.run.retention import clean_after_success, retained_after_failure
 
 
 class FakeClock:

@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.defaults import DEFAULT_PROMPT_DOCUMENT
-from ticket_dataset.errors import PromptDocumentError
-from ticket_dataset.generation.domain_doc import load_domain_document
-from ticket_dataset.privacy.detectors.datafog_detector import DataFogDetector
-from ticket_dataset.privacy.registry import DetectorRegistry
+from ticket_dataset_generator.config.defaults import DEFAULT_PROMPT_DOCUMENT
+from ticket_dataset_generator.errors import PromptDocumentError
+from ticket_dataset_generator.generation.domain_doc import load_domain_document
+from ticket_dataset_generator.privacy.detectors.datafog_detector import DataFogDetector
+from ticket_dataset_generator.privacy.registry import DetectorRegistry
 
 VALID = """---
 domain_id: test-domain

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpieb/customer-support-ticket-multiturn-dataset/schemas/manifest/1.0.0",
+  "$id": "https://github.com/arpieb/ticket-dataset-generator/schemas/manifest/1.0.0",
   "title": "RunManifest",
   "description": "How one generation run produced its output (Constitution Principles II and III). Validatable per FR-028; validation names any missing element. The reconciliation rule records_generated - sum(discards) == records_written is enforced by the model, not expressible here.",
   "type": "object",

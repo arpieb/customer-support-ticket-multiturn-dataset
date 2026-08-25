@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.loader import load_config
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.errors import ConfigError
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.enums import RunOutcome
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.loader import load_config
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.errors import ConfigError
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.enums import RunOutcome
+from ticket_dataset_generator.run.run import GenerationRun
 
 SKEWED = {
     "category": {
@@ -95,7 +95,7 @@ async def test_drift_past_the_tolerance_fails_the_run(tmp_path: Path, staging_ro
     # A judge that rejects one category's records skews the corpus; the run must fail on
     # composition and name the member (FR-031).
     def responder(role, system, user):
-        from ticket_dataset.model.client import ModelResponse, ModelRole
+        from ticket_dataset_generator.model.client import ModelResponse, ModelRole
 
         criteria = ["single_issue", "role_consistency", "conversational_flow", "metadata_fit"]
         if role is ModelRole.JUDGE:

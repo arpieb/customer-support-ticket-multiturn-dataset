@@ -6,8 +6,8 @@ broad and a real identifier walks through; too narrow and synthetic content bloc
 
 import pytest
 
-from ticket_dataset.privacy.fiction import describe_ranges, is_reserved_for_fiction
-from ticket_dataset.run.enums import PIICategory
+from ticket_dataset_generator.privacy.fiction import describe_ranges, is_reserved_for_fiction
+from ticket_dataset_generator.run.enums import PIICategory
 
 
 @pytest.mark.parametrize(

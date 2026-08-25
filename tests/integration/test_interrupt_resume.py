@@ -3,13 +3,13 @@
 import json
 from pathlib import Path
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.model.client import ModelResponse, ModelRole
-from ticket_dataset.model.fake import FakeModelClient
-from ticket_dataset.run.checkpoint import CHECKPOINT_NAME, Checkpoint
-from ticket_dataset.run.enums import RunOutcome
-from ticket_dataset.run.manifest import validate_manifest_file
-from ticket_dataset.run.run import GenerationRun
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.model.client import ModelResponse, ModelRole
+from ticket_dataset_generator.model.fake import FakeModelClient
+from ticket_dataset_generator.run.checkpoint import CHECKPOINT_NAME, Checkpoint
+from ticket_dataset_generator.run.enums import RunOutcome
+from ticket_dataset_generator.run.manifest import validate_manifest_file
+from ticket_dataset_generator.run.run import GenerationRun
 
 
 def _config(tmp_path: Path, **overrides) -> GenerationConfig:
@@ -42,7 +42,7 @@ def _client(fail_after: int | None = None) -> FakeModelClient:
             )
         state["generated"] += 1
         if fail_after is not None and state["generated"] > fail_after:
-            from ticket_dataset.model.client import ModelUnavailable
+            from ticket_dataset_generator.model.client import ModelUnavailable
 
             raise ModelUnavailable("provider went away")
         count = int(user.split("turn_count=")[1].split("\n")[0])

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.run.calibration import (
+from ticket_dataset_generator.run.calibration import (
     ScoredRecord,
     calibrate,
     gate_agreement,
@@ -271,7 +271,7 @@ def test_a_sample_judged_by_another_rubric_is_refused() -> None:
     Easy to do right after revising a rubric — which is exactly when a calibration is most likely
     to be run.
     """
-    from ticket_dataset.run.calibration import assert_sample_matches_rubric
+    from ticket_dataset_generator.run.calibration import assert_sample_matches_rubric
 
     records = [
         ScoredRecord(record_id="r1", judge_score=1.0, human_score=0.7, rubric_id="coherence-v1")
@@ -281,7 +281,7 @@ def test_a_sample_judged_by_another_rubric_is_refused() -> None:
 
 
 def test_a_matching_sample_passes() -> None:
-    from ticket_dataset.run.calibration import assert_sample_matches_rubric
+    from ticket_dataset_generator.run.calibration import assert_sample_matches_rubric
 
     records = [
         ScoredRecord(record_id="r1", judge_score=1.0, human_score=0.7, rubric_id="coherence-v2")
@@ -292,7 +292,7 @@ def test_a_matching_sample_passes() -> None:
 def test_a_sample_without_rubric_ids_is_not_second_guessed() -> None:
     # A hand-assembled sample may carry no rubric_id; the check has nothing to compare and says so
     # by passing rather than by inventing a mismatch.
-    from ticket_dataset.run.calibration import assert_sample_matches_rubric
+    from ticket_dataset_generator.run.calibration import assert_sample_matches_rubric
 
     assert_sample_matches_rubric(_records([(1.0, 0.7)]), "coherence-v2")
 

@@ -71,7 +71,7 @@ request rather than an accident of what the model happened to produce.
 
 ### Dataset Sources [optional]
 
-- **Repository:** https://github.com/arpieb/customer-support-ticket-multiturn-dataset
+- **Repository:** https://github.com/arpieb/ticket-dataset-generator
 - **Paper [optional]:** None
 - **Demo [optional]:** None
 
@@ -260,7 +260,7 @@ the repository rather than resampling this one.
   title        = {Synthetic Multi-Turn Customer Support Tickets (Consumer Electronics)},
   year         = {2026},
   version      = {0.1.0},          % the dataset version this card describes
-  howpublished = {\url{https://github.com/arpieb/customer-support-ticket-multiturn-dataset}}
+  howpublished = {\url{https://github.com/arpieb/ticket-dataset-generator}}
 }
 ```
 
@@ -268,7 +268,7 @@ the repository rather than resampling this one.
 
 Bates, R. (2026). *Synthetic Multi-Turn Customer Support Tickets (Consumer Electronics)*
 (Version 0.1.0) [Data set].
-https://github.com/arpieb/customer-support-ticket-multiturn-dataset
+https://github.com/arpieb/ticket-dataset-generator
 
 ## Glossary [optional]
 
@@ -287,8 +287,8 @@ https://github.com/arpieb/customer-support-ticket-multiturn-dataset
 
 The manifest and run report for this corpus are the authoritative provenance record: they carry
 the full resolved configuration, input hashes, code revision, and the complete filter accounting.
-`ticket-dataset config-from-manifest` recovers the exact configuration from the manifest, and
-`ticket-dataset generate --from-manifest` reproduces the run, refusing if any recorded input has
+`ticket-dataset-generator config-from-manifest` recovers the exact configuration from the manifest, and
+`ticket-dataset-generator generate --from-manifest` reproduces the run, refusing if any recorded input has
 since changed.
 
 ## Dataset Card Authors [optional]

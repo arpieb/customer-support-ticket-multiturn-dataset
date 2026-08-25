@@ -3,7 +3,7 @@
 import subprocess
 from pathlib import Path
 
-from ticket_dataset.run.revision import (
+from ticket_dataset_generator.run.revision import (
     CREDENTIAL_VARIABLES,
     capture_revision,
     environment_overrides,

@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import GenerationConfig
-from ticket_dataset.run.enums import DiscardReason
-from ticket_dataset.run.thresholds import (
+from ticket_dataset_generator.config.models import GenerationConfig
+from ticket_dataset_generator.run.enums import DiscardReason
+from ticket_dataset_generator.run.thresholds import (
     discard_rate_breaches,
     minimum_sample,
     should_stop_early,

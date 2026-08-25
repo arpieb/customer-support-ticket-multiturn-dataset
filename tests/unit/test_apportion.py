@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from ticket_dataset.config.models import Composition, GenerationConfig
-from ticket_dataset.errors import UnsatisfiableCompositionError
-from ticket_dataset.planning.apportion import (
+from ticket_dataset_generator.config.models import Composition, GenerationConfig
+from ticket_dataset_generator.errors import UnsatisfiableCompositionError
+from ticket_dataset_generator.planning.apportion import (
     achievability_problems,
     apportion,
     apportion_dimension,
     minimum_records_for_tolerance,
 )
-from ticket_dataset.schema.enums import COMPOSITION_DIMENSIONS
+from ticket_dataset_generator.schema.enums import COMPOSITION_DIMENSIONS
 
 
 def _config(**overrides) -> GenerationConfig:

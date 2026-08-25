@@ -2,14 +2,14 @@
 
 **Feature**: [spec.md](../spec.md) | **Plan**: [plan.md](../plan.md) | **Date**: 2026-08-19
 
-Entry point `ticket-dataset`, built with Typer. The CLI is a **thin wrapper**: it parses arguments, calls
+Entry point `ticket-dataset-generator`, built with Typer. The CLI is a **thin wrapper**: it parses arguments, calls
 the programmatic API in [python-api.md](./python-api.md), renders a report, and exits with a status derived
 from that report's verdict. It contains no generation, validation, or scanning logic of its own, so the
 machine verdict and the human text cannot disagree (FR-036).
 
 ---
 
-## `ticket-dataset generate`
+## `ticket-dataset-generator generate`
 
 Produce a corpus. The primary command.
 
@@ -49,7 +49,7 @@ be reading exit codes.
 
 ---
 
-## `ticket-dataset config-from-manifest PATH`
+## `ticket-dataset-generator config-from-manifest PATH`
 
 Recover the configuration a run used, from the manifest it wrote (FR-040).
 
@@ -81,7 +81,7 @@ ships with the dataset.
 
 ---
 
-## `ticket-dataset validate-manifest PATH`
+## `ticket-dataset-generator validate-manifest PATH`
 
 Check a manifest against the manifest contract and its reconciliation rule (FR-028).
 
@@ -94,7 +94,7 @@ Manifests are named `<run_id>.manifest.json` and written beside the artifact (FR
 
 ---
 
-## `ticket-dataset privacy scan PATH`
+## `ticket-dataset-generator privacy scan PATH`
 
 Run the offline privacy scan over an existing JSONL artifact, independently of a generation run. Useful for
 re-checking an artifact after the exception file changes — re-running generation to verify an approval would
@@ -119,7 +119,7 @@ one (FR-019, FR-021b, FR-023).
 
 ---
 
-## `ticket-dataset privacy approve`
+## `ticket-dataset-generator privacy approve`
 
 Record a reviewed finding as an approved exception.
 
@@ -143,7 +143,7 @@ something no artifact contains.
 
 ---
 
-## `ticket-dataset sample-for-review`
+## `ticket-dataset-generator sample-for-review`
 
 Export a seeded random sample of records with their coherence scores, for the human calibration SC-011
 requires.
@@ -159,7 +159,7 @@ The calibration judgment is a human act; this command exists so it is cheap rath
 
 ---
 
-## `ticket-dataset schema export`
+## `ticket-dataset-generator schema export`
 
 Write the JSON Schema export of the record contract to stdout or `--out`. CI runs this and fails on any
 diff against `specs/001-ticket-generation-pipeline/contracts/record.schema.json`, so a schema change cannot
