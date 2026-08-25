@@ -8,8 +8,11 @@
 **Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Date**: 2026-08-18
 
 Entities are drawn from the spec's Key Entities section; validation rules are traced to the functional
-requirement that mandates them. All models are Pydantic v2; the record model is authoritative and exports
-[contracts/record.schema.json](./contracts/record.schema.json).
+requirement that mandates them. All models are Pydantic v2.
+
+> **Note:** the record contract moved to feature 001 when this feature's scope was corrected (see the
+> status banner in [spec.md](./spec.md)). It is owned and exported there:
+> [`specs/001-ticket-generation-pipeline/contracts/record.schema.json`](../001-ticket-generation-pipeline/contracts/record.schema.json).
 
 ---
 
